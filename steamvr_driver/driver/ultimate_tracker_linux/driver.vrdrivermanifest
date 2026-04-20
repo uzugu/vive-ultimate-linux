@@ -1,0 +1,11 @@
+{
+  "alwaysActivate": true,
+  "name": "ultimate_tracker_linux",
+  "directory": "",
+  "resourceOnly": false,
+  "hmd_presence": [],
+  "other_presence": [
+    "*.*"
+  ]
+}
+

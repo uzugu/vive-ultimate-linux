@@ -1,0 +1,37 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+
+namespace uts
+{
+
+struct Vec3
+{
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+};
+
+struct Quat
+{
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+    double w = 1.0;
+};
+
+struct TrackedPose
+{
+    int tracker_index = 0;
+    std::string serial;
+    std::string status = "searching";
+    int tracking_code = -999;
+    std::string tracking_label = "unknown";
+    Vec3 position_m;
+    Quat orientation_xyzw;
+    Vec3 linear_accel_m_s2;
+    std::uint64_t timestamp_ns = 0;
+};
+
+} // namespace uts

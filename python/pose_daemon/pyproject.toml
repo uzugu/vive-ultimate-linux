@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ultimate-linux-support-daemon"
+version = "0.1.0"
+description = "Local pose daemon for VIVE Ultimate Trackers on Linux"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+pyvut = []
+
+[project.scripts]
+ultimate-linux-support-daemon = "ultimate_linux_support.daemon:main"
+ultimate-linux-support-pose-dump = "ultimate_linux_support.pose_dump:main"
+ultimate-linux-support-inspect-socket = "ultimate_linux_support.inspect_socket:main"
+ultimate-linux-support-capture = "ultimate_linux_support.capture:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

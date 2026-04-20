@@ -1,0 +1,6 @@
+{
+  "driver_ultimate_tracker_linux": {
+    "socket_path": "/tmp/ultimate-tracker-linux.sock",
+    "notes": "One-tracker bring-up currently treats pyvut raw tracking code 18 as a usable live pose."
+  }
+}
