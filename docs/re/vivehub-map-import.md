@@ -51,9 +51,17 @@ So the package, as the server sees it, is a zip with **an `autosave0` file and a
 - What would settle the format without touching a tracker: the file names inside the tracker log bundle (`hdlog.tgz`) that the PC session already pulled
   (member names and sizes only; look for `autosave`, `general_map`, `file_pack_info`, `ed`). If a pack file is there, compare its first bytes with the three databases.
 
+## 3b. Two obstacles found in the tracker logs (not in the PC binaries)
+
+- **Signed packs.** On every boot a client logs `/data/lambda/8/ed/file_pack_info_<n>_0.json` and stores the sending tracker's `/data/.ssl/pubkey.pem` as `<n>_0_pubkey.pem`
+  (see `vivehub-windows-live-tracker-bundle.md` section 6). Tracker-to-tracker packs therefore appear to carry or be checked against a public key. A PC that forges such a pack
+  may be rejected. HTC's VBP `autosave0` path has no key in the package the server unzips (only `autosave0` and `boundary`), so it may be accepted on a different path, but that is unverified.
+- **We must be the server.** A tracker only talks to a TCP server on the PC (it was told the PC's IP and Wi-Fi). To send it a file we have to run that server ourselves, with HTC's
+  `ViveTrackerServer.exe` stopped, and the tracker has to join our listener. The ports are still not matched to roles (see the ports note), so the first job is a listener that accepts the tracker's connection and logs what it sends.
+
 ## 4. Hardware test plan (not run; each step is a separate request to the owner)
 
-1. **Transfer path check, no map involved.** Cable or Wi-Fi-connect one tracker, put it in transfer mode, send a 1 KB text file named for the SD card
+1. **Transfer path check, no map involved.** This needs our own listener first (section 3b). Cable or Wi-Fi-connect one tracker, put it in transfer mode, send a 1 KB text file named for the SD card
    (`/sdcard/vut_test.txt`) with our message 22/23 sender, then `adb ls /sdcard/` to see it, then delete it with the HID file delete (bare name, as HTC's tool does).
    This proves the transfer works on firmware 1.0.999.178 and shows the tracker's reply (message 24).
 2. **Name check.** Send the same 1 KB file as `FDautosave0` and watch what the tracker's log says about it. A parse error would show the format it expects.
