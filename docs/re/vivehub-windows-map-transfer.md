@@ -49,8 +49,21 @@ file(s) plus its large-scale flag**, and switching rooms = put the tracker in tr
 (the Linux notes say `/data/lambda` and `/data/mapdata`), how to *download* a map from a tracker (the upload path we found
 is logs only), and whether clients need the host's map or only the host does.
 
+## 3b. How it fits with the wizard pipe
+
+The driver-pipes note (`re-driver-pipes.md`, section 5) lists the wizard's map commands on `TrackerNamedPipe`: start map
+creation (0x21), end (0x22), last creation time (0x23), status (0x28), scan notification (0x2e/0x30). It confirms that
+**map import is not a pipe command**: it is the server's own file-transfer job, which is the path decoded above. So a
+room switcher needs both: the pipe-level (or our own) start/end/status calls for building a map, and this
+header/bytes/trailer transfer for loading one.
+
+Ports: a scan for constant port numbers written into the Wi-Fi object found none, so they come from elsewhere (server
+config or the tracker is told them at connect). Cheapest way to close this: on the PC with trackers connected run
+`netstat -ano | findstr <pid of ViveTrackerServer.exe>`; the listening TCP/UDP ports are the ones.
+
 ## 4. Test plan for hardware (smallest steps first)
 
+0. With trackers connected, run `netstat -ano` and note the ports `ViveTrackerServer.exe` listens on.
 1. In VIVE Hub on Windows, build a map; look in `%ProgramData%\HTC\ViveSoftware\ViveUltimateTracker\MAP` and note which files appear.
 2. Run VIVE Hub's own "map import" if the UI exposes one and capture the TCP stream (Wireshark); compare to the packets above.
 3. Only then try our sender, on a spare tracker, with a copy of a known-good map.
