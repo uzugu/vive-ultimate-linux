@@ -53,7 +53,8 @@ but not what a normal map build uses [guess: it is for import/diagnostic/enterpr
 - A **room = the host tracker's map**. Clients follow the host automatically, so we only have to put the right map on the host.
 - **Export** (tracker to PC): **proven**, but not with adb shell (locked on firmware 1.0.999.178). HTC's log tool with `-getmap` sends HID opcode 0x56 with type=1; the tracker builds `/sdcard/hdlog.tgz` (about 4 minutes, 298 MB) holding `data/hdlog/mapdata/` as three SQLite files; `adb pull /sdcard/hdlog.tgz` works. Procedure and structure: [vivehub-map-format.md](vivehub-map-format.md).
 - **Import** (PC to tracker): **unsolved.** The USB file service only sees `/sdcard`, and adb push into `/data` is not expected to work. Leads: HTC's "Map Import" (`persist.vbp.map_*` plus `autosave0`), or the Wi-Fi transfer messages 22/23 in section 2.
-- **Multi-map hypothesis:** `general.db` reports `map_size` 3 and indexes visual words by map id, so the tracker may keep up to three rooms. Untested.
+- **Multi-map is unproven:** the registry says `map_size` 3, but that is probably a size class (it equals `persist.lambda.multimap.size`), and every logged save holds one map. A tracker writes its map on standby.
+- **Pack route:** trackers send each other maps as packs of the three files plus a small JSON and a public key (see vivehub-map-format.md section 2.4). Possible import route; protocol not decoded.
 - Which tracker is host is per scan (`is host`, slot 4 here), so a room record must also store which serial was host.
 
 ## 3b. How it fits with the wizard pipe
@@ -71,6 +72,6 @@ matched. Match them by logging which port the tracker connects to during a trans
 ## 4. Test plan for hardware (smallest steps first)
 
 0. ~~List the server's listening ports~~ (done, see section 3b).
-1. ~~Look in the PC `MAP` folder after a map build~~ (done: empty). ~~Export a map~~ (done, see vivehub-map-format.md). Next: build a second and third room without wiping and re-export, to see whether `general.db` holds several maps and the tracker switches on its own.
+1. ~~Look in the PC `MAP` folder after a map build~~ (done: empty). ~~Export a map~~ (done, see vivehub-map-format.md). Next: build a second and third room without wiping and re-export, to see whether `general.db` ever holds several maps.
 2. Run VIVE Hub's own "map import" if the UI exposes one and capture the TCP stream (Wireshark); compare to the packets above.
 3. Only then try our sender, on a spare tracker, with a copy of a known-good map.

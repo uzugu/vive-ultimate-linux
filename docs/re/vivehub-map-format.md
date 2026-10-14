@@ -32,7 +32,7 @@ All three are SQLite 3 databases (page size 4096, UTF-8, `user_version` 0). They
 | `multimap_container` | 2 | named blobs `mnMapVersionSet` and `boundary_id_table_` |
 | `database` | 111,853 | `cam_i`, `keyframe_device_id`, `keyframe_id`, `map_id`, `word_id`: an inverted index from visual words to keyframes, **keyed by map id** |
 
-`map_size` 3 matches the tracker setting `persist.lambda.multimap.size` = 3, and the word index carries a `map_id` column. Together with `next_id_` 96 (so earlier maps existed and were replaced) this strongly suggests the firmware can hold up to three maps and recognise places across them. **Hypothesis, not yet tested: building a second and third room without wiping the first may already give room switching on the tracker itself.**
+`map_size` 3 equals the tracker settings `persist.lambda.multimap.size` and `persist.tracking.mode.map.size` (both 3; the player logs the second at boot, next to `largescale`, as "tracking mode map size: 3"), so it is probably a map size class chosen in the wizard rather than a capacity. The word index does carry a `map_id` column and the tables are called "multimap", so the format was designed for several maps. But **every save in the tracker's SLAM logs holds exactly one map**: id 91 (175 keyframes, 1,580 points, created 26 September) and now id 95, and `next_id_` 96 means ids 92 to 94 were created and dropped in between. So keeping several rooms side by side on one tracker is **not evidenced**; it needs the second-room test in section 4.
 
 ### 2.2 `map_95.db`: an ORB-SLAM-style map serialised to SQLite
 
@@ -53,10 +53,17 @@ The map creation time and last-use time match the logs of the PC server, so the 
 
 One table, `KeyFrame_pyramid` (471 rows): `mapId`, `deviceId`, `mnId`, `camId`, `level`, `rows`, `cols`, `type` and a `data` blob of 19 KB to 307 KB (a 640 x 480 grey image is 307,200 bytes), so it stores the keyframe image pyramids for both cameras.
 
+### 2.4 When a map is written, and how maps travel between trackers (from the tracker's SLAM logs)
+
+- **Saving.** When the tracker goes to standby (here at 21:29 PC time, "entered sleeping") the SLAM service stops mapping (`Notify prepare load map`, `Notify wait map`, `LocalMapping::RequestFinish`), opens `/data/mapdata/general.db`, and writes the registry (db type 0), the map (type 1) and the keyframe images (type 2) in one go. It logs `[SaveMapsInMultiMap] id:95, kf:134, mp:1318, t:<created>, last_t:<last entered>, order:241` and `SaveMapToSqlite 5.8 s` (7.1 s in September). So the files on disk are the state at the last standby, and a live map is only exported once the tracker has saved it. The 134 keyframes in the log are the 144 stored minus 10 discarded ("bad") ones.
+- **Sharing.** The SLAM service has a per-device `TransmissionHandler` (send file, receive file, send-file task, lambda commands, small-map send and receive timestamps), a `FilePackManager` and a `MapSharingExchanger`. Packs are kept per device under `/data/lambda/<device>/`: `general_map/` holds renamed copies of exactly the three map files (`<n>_<m>_general.db`, `<n>_<m>_map_<id>.db`, `<n>_<m>_kf_<id>.db`) plus a `file_pack_info_<n>_<m>.json`; `gravity_info/` holds small gravity packs (removed 53 times in the logs); `ed/` holds a pack-info JSON and a public key. `FilePackManager::RemoveFile` deletes them once a pack has been loaded. So the host-to-client transfer moves the same three databases.
+- The empty `smallmap/` folder next to the databases probably belongs to the "small map" exchange used for continuous relocalisation between host and clients.
+
 ## 3. What this changes for room switching
 
 - A room is a set of files in `/data/mapdata/` plus rows in `general.db`, not a single file. Exporting is now possible and proven; **importing is not**: the tracker's USB file service only sees `/sdcard`, so writing back needs either HTC's "Map Import" path (`persist.vbp.map_*` plus a file called `autosave0`, whose relation to these databases is unknown) or another route.
-- The multi-map hypothesis (section 2.1) is the cheapest thing to test: build two more maps with HTC's wizard in other rooms and check `general.db` afterwards.
+- The multi-map question (section 2.1) is the cheapest thing to test: build a second map in another room with HTC's wizard, without clearing the first if the wizard allows that, let the tracker go to standby so it saves, then export again and check `general.db`. The logs so far show one map per save.
+- A map reaches a client as a pack of the three files plus a JSON and a public key. A PC that could speak the trackers' pack protocol could in principle deliver a stored room to a client; that protocol is not decoded.
 - Because the host's map is copied to the clients over Wi-Fi, an export from any client is a copy of the host's map; whether the client copy is byte-identical to the host's was not checked.
 
 ## 4. Open
