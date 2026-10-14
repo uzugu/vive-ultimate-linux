@@ -1,5 +1,7 @@
 # VIVE Hub for Windows 1.2.7: pairing, unpairing and tracker status
 
+Live cross-check (2026-10-14, three trackers on the dongle, see `vivehub-windows-live-crosscheck.md`) has been folded in: device index 0xFE, the watchdog behavior, slot status values and the battery formula are now confirmed; the `Trackers.json` key list is corrected.
+
 Scope: how `vive_tracker_driver.dll` (1.0.7.98) and `ViveTrackerServer.exe` (1.1.4.30) pair and unpair trackers and report
 battery, connection and tracking state. Compared with the public USB HID work (`shinyquagsire23/vive_ultimate_tracker_re`,
 `nijkah/pyvut`). Read as prior-art cross-reference only; nothing here is copied from either.
@@ -82,11 +84,11 @@ and friends. The pipe command is JSON `CmdType 215 (0xD7)` with `CmdKey`, `Devic
 | `0..4` | 1 | `PairTrackerWithDongle` pair | `TriggerDongleMode(slot, 0, false)`: behavior 0, one-hot slot |
 | `0..4` | 0 | unpair, then remove the server-side record (`srv+0x46100`) | `TriggerDongleMode(slot, 6, false)`: behavior 6, one-hot slot |
 | `0xFD` | any | "Unpair All": loop slots 0..4 and unpair each | one behavior-6 packet per slot |
-| `0xFE` | 1 | start pairing on the dongle (`srv+0x4fb10(1)`) | `TriggerDongleMode(5, 0, true)`: behavior 0, all empty slots |
-| `0xFE` | 0 | `CancelPairing` (`Cancel pairing on dongle.`) | `TriggerDongleMode(0, 3, true)`: behavior 2 (restart RF), empty-slot mask |
+| `0xFE` (-2) | 1 | start pairing on the dongle (`srv+0x4fb10(1)`) | `TriggerDongleMode(5, 0, true)`: behavior 0, all empty slots. **Live-confirmed** |
+| `0xFE` (-2) | 0 | `CancelPairing` (`Cancel pairing on dongle.`) | `TriggerDongleMode(0, 3, true)`: behavior 2 (restart RF), empty-slot mask. **Live-confirmed** |
 | `0xFF` | any | `srv+0x4fb10(0)` | `TriggerDongleMode(5, 0, false)`: behavior 0, empty mask [guess: ends pairing] |
 
-[code] for the call arguments; the meanings of `0xFD/0xFE/0xFF` are [guess] from the logs ("Cancel pairing", "Unpair All").
+[code] for the call arguments; `0xFE` is confirmed on hardware (server log `Pair tracker, isPair: 1, device index:-2`; the dongle's `Pairing` flag was then 1 on exactly the empty slots and back to 0 after `isPair: 0`). The meanings of `0xFD` and `0xFF` are still [guess] from the logs ("Unpair All").
 Failure codes returned by `PairTracker` are `0x19` when the dongle call fails. Related: `OETServer::WakeupDongle` ("Wake up dongle") and
 `SetDongleToPowerSavingMode` ("Set dongle into standby") most likely use behaviors 2 and 1; the call arguments were not read. [guess]
 
@@ -97,8 +99,8 @@ Failure codes returned by `PairTracker` are `0x19` when the dongle call fails. R
   `[unk][is_unpair][mac…]`. [code][match] HTC keys everything on the **slot number** and treats the MAC as unreliable;
   pyvut says the MACs "have always been fake". [match]
 - A connection watchdog `TrackerConnectionTimeoutProc` (`dll+0x43150`) logs `CONNECTION TIMEOUT! unpair tracker`,
-  `Tracker failed to connect. retry: %d`. The per-slot timeout in ms comes from the 16-bit field of the slot record. [strings]
-  We did not trace what exactly it sends, so **do not assume the DLL auto-unpairs**; confirm on hardware.
+  `Tracker failed to connect. retry: %d`. **Live-confirmed: a timeout drops the link but does not unpair.** Slot 3 timed out after
+  10 s, the server removed it, the dongle slot kept `Exist DB` 1 (status 8 to 5), and it reconnected 7 s later with no pairing step. Despite the log text, treat the watchdog as a disconnect.
 - At server start, saved trackers from `Trackers.json` are replayed to the Hub (`Report saved tracker`, `Skip this paired
   info`, `prev paired info overwritten`). If the dongle in the port differs from the one the saved info belongs to, the
   server creates `fake_<SN>` placeholder trackers and unpairs them (`Unpair fake tracker. dongle slot number: %d`). [strings]
@@ -121,7 +123,8 @@ byte 9 with five records of four bytes each. [code]
 
 ```
 rec[i] (i = 0..4, offset 9 + 4*i)
-  byte 0    status          (e.g. 0x03 unpaired, 0x08 paired)
+  byte 0    status          3 empty slot, 5 paired but not connected, 8 RF connected, 6 transitional
+                            (seen once with Pairing and Connecting set); live-confirmed
   byte 1-2  connection timeout, ms, little endian
   byte 3    flags
               bit 0  power saving
@@ -140,7 +143,7 @@ Check against pyvut's observed words (u32 little-endian = status | timeout<<8 | 
 | pyvut word | status | timeout | flags | Reading |
 |---|---|---|---|---|
 | `0x320fc008` | 0x08 paired | 4032 ms | `0x32` = exist DB, RF connected, send IMU | paired and streaming |
-| `0x4000003` | 0x03 | 0 | `0x04` = pairing | slot is open for pairing |
+| `0x4000003` | 0x03 | 0 | `0x04` = pairing | empty slot, open for pairing |
 | `0x1000003` | 0x03 | 0 | `0x01` = power saving | empty, dongle idle |
 
 `dumpPUMRFQueryStatus` (`dll+…`, strings only) shows a second, longer dongle status report with the same columns plus
@@ -158,7 +161,7 @@ Two bytes `p0, p1` per tracker data report: [code]
 p0                    stored raw (buttons/accessory byte)
 p1 bit 7 = 1          pogo mode: p1 & 0x7f = pogo status; bits 0,1,2,3,4 are five accessory flags
 p1 bit 7 = 0          p1 bit 6 = isCharging
-                      p1 & 0x3f = battery, percentage = (p1 & 0x3f) * 2   (0..126, so HTC must clamp at 100 or the field tops out near 100)
+                      p1 & 0x3f = battery, percentage = (p1 & 0x3f) * 2   (live readings 86, 62, 60, 58: always even, steps of 2; confirmed)
 ```
 The DLL logs `isCharging: %d, battery percentage: %d%` and `isCharging is changed from %d to %d`; it only forwards on change.
 The server callback `OnPeripheralDataChanged` (`srv+0x4a200`) logs `is charging, battery percent, system button, grip,
@@ -218,10 +221,11 @@ The server's one-line log of the same record shows the order and extras: `displa
 tracking status, charging, percentage, map ID, map status, has map, map state, is host, bIsConnectedOnUSB, has new fw,
 is unpaired, last update time, error code, indicator event, indicator value`. [strings]
 
-Persisted tracker list (`config\Trackers.json`): `dongle_count`, `Dongles`, `serial`, `tracker_count`, `Trackers`,
-`strTrackerName`, `strTrackerFWVersion`, `strTrackerSN`, `uTrackerIndex`, `uDisplayIndex`, plus per-map keys
-(`map_setup`, `last_map_creation_time`, `map_quality`, `space_setup`, `transform`, `universe_id`…). [strings] This is
-the file whose schema our own app can mirror to be state-compatible with VIVE Hub.
+Persisted tracker list (`config\Trackers.json`): `Dongles` (each with `serial`, `tracker_count`, `Trackers`), `dongle_count`,
+`WiFi.tracker_count`, and per tracker `strTrackerName`, `strTrackerFWVersion`, `strTrackerSN`, `uTrackerIndex`, `uDisplayIndex`.
+**Corrected by the live cross-check:** the map and space keys (`map_setup`, `last_map_creation_time`, `map_quality`, `space_setup`,
+`transform`, `universe_id`…) live in `Calibration.json`, not `Trackers.json`. This is the file whose schema our app can mirror to be
+state-compatible with VIVE Hub.
 
 `IsUnpaired` is a flag on the device record, not a missing record: Hub keeps showing an unpaired tracker's card until the
 user dismisses it, which explains the UI states "Pairing begin/end, Unpairing begin/end" in the server resources. [guess]
@@ -242,18 +246,18 @@ Tracker pairing state is not visible over USB; pairing always goes through the d
 3. **Cancel pairing**: send behavior 2 with the empty-slot mask (Windows' Cancel).
 4. **Status model**: reuse the JSON names in section 6 as our daemon's status fields; they are what the Hub UI already
    expects, so any Hub-style frontend maps 1:1.
-5. **Battery**: `percent = (p1 & 0x3f) * 2` capped at 100, `charging = p1 & 0x40`, only when `p1 & 0x80 == 0`.
+5. **Battery**: `percent = (p1 & 0x3f) * 2` capped at 100, `charging = p1 & 0x40`, only when `p1 & 0x80 == 0`. The DLL forwards a change only when the value changes; before the first report the percentage reads 0.
 6. **Slot table**: surface the seven flag bits per slot for the diagnostics page.
 
 ## 9. Open questions
 
 1. Offset of the two peripheral bytes inside the 0x28 payload for each of the 39-byte and 50-byte formats.
-2. What `0xFF` really does, and whether `PairTrackerWithDongle(5, …)` is "stop pairing".
-3. What the connection-timeout thread sends before unpairing, and the retry counts.
-4. Low-battery threshold and the clamp for battery above 100.
+2. What `0xFF` and `0xFD` really do (`0xFE` is settled).
+3. Retry counts of the connection watchdog (one live case: 10 s, retry 10).
+4. Low-battery threshold.
 5. Binary layout of the extended dongle status report (`dumpPUMRFQueryStatus`) and the RF drop-rate report.
 6. Whether `NADN`/`NADI` are what the Hub shows as the tracker name (`AssignDeviceName`, `AGs1,` JSON chunks).
-7. Hardware confirmation of every packet above with `usbmon`. Capture a pair, an unpair-one, a cancel, and a power-off.
+7. Packet-level confirmation with `usbmon`. The live cross-check confirmed behavior at the log and dongle-status level only, not the raw `1D 09 …` bytes. Capture a pair, an unpair-one, a cancel, and a power-off.
 8. The EULA reverse-engineering clause is still unread; keep this document internal until someone reads it.
 
 ## 10. Reproducing
