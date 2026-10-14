@@ -29,6 +29,10 @@ class ConfigTests(unittest.TestCase):
         cfg = ServerConfig()
         self.assertEqual(load_config(dump_config(cfg)), cfg)
 
+    def test_matches_live_file(self):
+        live = '{\n   "server" : {\n      "auto_sleep_timeout" : 0,\n      "camera_frame_rate" : 60,\n      "ignore_force_update" : null,\n      "is_auto_sleep" : false,\n      "log_level" : 2\n   }\n}\n'
+        self.assertEqual(dump_config(load_config(live)), live)
+
     def test_effective_auto_sleep(self):
         self.assertEqual(ServerConfig(is_auto_sleep=False, auto_sleep_timeout=5).effective_auto_sleep, 0)
         self.assertEqual(ServerConfig(is_auto_sleep=True, auto_sleep_timeout=5).effective_auto_sleep, 5)

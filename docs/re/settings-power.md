@@ -4,8 +4,8 @@ Scope: auto-sleep, power off, reset, reboot, camera frame rate / power frequency
 update is triggered (documented only, no flasher). Source: VIVE Ultimate Tracker 1.2.7 for Windows
 (`ViveTrackerServer.exe` 1.1.4.30, `vive_tracker_driver.dll` 1.0.7.98, `UTCollectLog.exe`, `UTLogRetriever.exe`).
 
-**Method and confidence.** Static analysis only (PE imports, strings, x86-64 disassembly of the call sites). Nothing was
-run and no traffic was captured. Tags: **[code]** read directly from disassembled code, **[string]** from log/format
+**Method and confidence.** Static analysis (PE imports, strings, x86-64 disassembly of the call sites), then checked against
+live logs of a running install (2026-10-14, firmware 1.0.999.178). No traffic was captured, so wire bytes stay unconfirmed. Tags: **[code]** read directly from disassembled code, **[string]** from log/format
 strings, **[inferred]** our reading, not confirmed. Only function names, message names and byte values are recorded here,
 no HTC code or assets. HTC binaries stay out of git. See the licensing note at the end.
 
@@ -72,8 +72,10 @@ Commands seen at call sites **[code]** (fields in angle brackets are decimal ASC
 | Auto-sleep | `pAS_TS<n>` | `n` from the Hub. Disabled is sent as `pAS_TS0` (server passes 0 when `IsAutoSleep` is false). Unit not confirmed; HTC's docs say 3 minutes, so minutes **[inferred]** |
 | Camera frame rate | `ACF<n>` | `n` is the fps number, e.g. `ACF60`. Also sent once at tracker init with the stored rate |
 | Reboot | `APR` | `OETServer::RebootTracker(serial)` |
-| Power off | `APF` | power state 0 |
-| Power on / start | `APS` (state 3), `ATM1` (state 11), `ATM<n>` (other states) | `ATM20` = host/SLAM map mode, `ATM51` = file-transfer mode |
+| Power off | `APF` | power state 0 (not yet seen live) |
+| Standby | `APS` (power state 3) | sent when a tracker drops; live log: it failed with `err: 2` "Device is not active" |
+| Start as client / host | `ATM1` (state 11) / `ATM<n>` (other states, e.g. state 21 for the host) | live driver log: host starts with state 21, clients with 11 |
+| Map/mode commands | `ATM20` = host/SLAM map mode, `ATM51` = file-transfer mode | |
 | Set time | `ATS...` | sent at init |
 | Start firmware (FOTA) | `AFM<path>` | path of the package already pushed to the tracker |
 | Relocate | `pFL1` | |
@@ -102,15 +104,19 @@ Path: `%ProgramData%\HTC\ViveSoftware\ViveUltimateTracker\config\Config.ini`. De
 (`Fail to read config json`) with one object, `server` **[code]**:
 
 ```json
-{ "server": { "log_level": 2, "camera_frame_rate": 60, "ignore_force_update": false,
+{ "server": { "log_level": 2, "camera_frame_rate": 60, "ignore_force_update": null,
               "is_auto_sleep": false, "auto_sleep_timeout": 0 } }
 ```
 
-Defaults above are what the server writes when the file is missing (`ignore_force_update` is read but not in the default
-set; treat as false) **[code]**. The server rewrites the file whenever the Hub changes auto-sleep or frame rate
-(`UpdateConfigFile`). On start it re-applies `camera_frame_rate` to each tracker (`ACF<n>`) and auto-sleep through
-`SetAutoSleep` **[inferred from call order; applying on connect not traced]**.
-Sibling files: `Trackers.json`, `Calibration.json`, `tracking_info.json`.
+Defaults above are what the server writes when the file is missing. Live (running 1.2.7, 2026-10-14): `ignore_force_update`
+is `null`, not false, and the file is written jsoncpp-style: keys sorted alphabetically, 3-space indent, ` : `
+separators. The server **rewrites it at every start**, not only when the Hub changes a setting (modification time equals
+server start). `UpdateConfigFile` also runs when the Hub changes auto-sleep or frame rate.
+Live driver log confirms the server re-applies settings when a tracker first connects: `Set Camera frame rate: 60`
+right after `Add tracker`, then `StartTracker`, then `Auto Sleep Set. time: 0`. On a **reconnect** of an already known
+tracker the auto-sleep is re-sent but the frame rate is not. At server start `SetCameraFrameRateToAllTrackers` fails
+because no tracker is connected yet.
+Sibling files: `Trackers.json` (only dongles, serials and tracker counts), `Calibration.json` (all map and space keys), `tracking_info.json`.
 
 ## 6. Power frequency
 

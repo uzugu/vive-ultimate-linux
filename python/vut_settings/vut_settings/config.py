@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass
 class ServerConfig:
     log_level: int = 2
     camera_frame_rate: int = 60
-    ignore_force_update: bool = False
+    ignore_force_update: bool | None = None
     is_auto_sleep: bool = False
     auto_sleep_timeout: int = 0
 
@@ -29,4 +29,5 @@ def load_config(text: str) -> ServerConfig:
 
 
 def dump_config(cfg: ServerConfig) -> str:
-    return json.dumps({"server": asdict(cfg)}, indent=2) + "\n"
+    """Match the server's jsoncpp style: sorted keys, 3-space indent, ' : ' separators."""
+    return json.dumps({"server": asdict(cfg)}, indent=3, sort_keys=True, separators=(",", " : ")) + "\n"
