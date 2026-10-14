@@ -40,14 +40,22 @@ connection to the PC [code]:
 A tested packet builder/parser for messages 22 and 23 is in [`python/tools/vut_filetransfer.py`](../../python/tools/vut_filetransfer.py)
 (`pytest tests`). It has not been run against a real tracker yet.
 
-## 3. What a "map import" most likely is [guess]
+## 3. What this means for rooms (updated after a live check on the owner's PC)
 
-The server labels a job "Map Import" and the library reads a "MAP BINARY" from a local file, then pushes it with the
-sequence above; the tracker-side names are `autosave0` / `FEautosave0`. So a **room = the tracker's `autosave0` map
-file(s) plus its large-scale flag**, and switching rooms = put the tracker in transfer state, send that room's file
-(message 22, bytes, message 23), then `RelocateTracker`. What is still unknown: where the tracker keeps `autosave0`
-(the Linux notes say `/data/lambda` and `/data/mapdata`), how to *download* a map from a tracker (the upload path we found
-is logs only), and whether clients need the host's map or only the host does.
+A live check ([vivehub-windows-live-findings.md](../../../mnt/project-files/vivehub-windows-live-findings.md), project files) corrected
+my first reading: the PC-side `MAP\` folder is **empty and has never been written**. The PC only keeps map *metadata*
+(`Calibration.json`: creation time, eight quality values). The host tracker owns the map, and after a scan the other trackers
+report "has map" again 17 to 19 seconds later without any file on the PC, so host-to-client sync happens between the trackers.
+
+So the file-transfer path above (the library's "Map Import" job, tracker-side names `autosave0` / `FEautosave0`) is real code
+but not what a normal map build uses [guess: it is for import/diagnostic/enterprise use]. Revised room-switching model:
+
+- A **room = the host tracker's map**. Clients follow the host automatically, so we only have to put the right map on the host.
+- **Export** (host to PC) has no known wire path yet. Candidates: `adb pull` of the host's map directories (Linux notes:
+  `/data/lambda`, `/data/mapdata`; HTC's server bundles adb and uses it for firmware), or find a tracker-to-PC upload type
+  (only logs found so far).
+- **Import** (PC to host): the header/bytes/trailer transfer in section 2, then relocate, or `adb push`.
+- Which tracker is host is per scan (`is host`, slot 4 here), so a room record must also store which serial was host.
 
 ## 3b. How it fits with the wizard pipe
 
@@ -57,13 +65,13 @@ creation (0x21), end (0x22), last creation time (0x23), status (0x28), scan noti
 room switcher needs both: the pipe-level (or our own) start/end/status calls for building a map, and this
 header/bytes/trailer transfer for loading one.
 
-Ports: a scan for constant port numbers written into the Wi-Fi object found none, so they come from elsewhere (server
-config or the tracker is told them at connect). Cheapest way to close this: on the PC with trackers connected run
-`netstat -ano | findstr <pid of ViveTrackerServer.exe>`; the listening TCP/UDP ports are the ones.
+Ports: no constants in the Wi-Fi object. Live check: `ViveTrackerServer.exe` listens on TCP 3680, 8053, 9005, 9527, 15680 and
+UDP 9005 (only 15680 is named in a log). Likely: UDP 9005 = poses, one TCP port = time sync, one = file transfer; not yet
+matched. Match them by logging which port the tracker connects to during a transfer.
 
 ## 4. Test plan for hardware (smallest steps first)
 
-0. With trackers connected, run `netstat -ano` and note the ports `ViveTrackerServer.exe` listens on.
-1. In VIVE Hub on Windows, build a map; look in `%ProgramData%\HTC\ViveSoftware\ViveUltimateTracker\MAP` and note which files appear.
+0. ~~List the server's listening ports~~ (done, see section 3b).
+1. ~~Look in the PC `MAP` folder after a map build~~ (done: empty). Next: with one tracker plugged in by USB-C and `adb devices` working, run `python3 python/tools/vut_rooms.py check` to see whether the tracker's map directories exist and are readable.
 2. Run VIVE Hub's own "map import" if the UI exposes one and capture the TCP stream (Wireshark); compare to the packets above.
 3. Only then try our sender, on a spare tracker, with a copy of a known-good map.
