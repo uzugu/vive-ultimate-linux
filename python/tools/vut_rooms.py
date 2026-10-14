@@ -3,8 +3,12 @@
 
 The Ultimate Tracker keeps its map on-device in /data/lambda and /data/mapdata
 (see docs/re/vivehub-linux-notes.md). This tool snapshots those directories from a
-tracker connected over USB and restores them later. Untested on hardware yet:
-run `check` first and keep the first snapshot of every tracker as a backup.
+tracker connected over USB and restores them later.
+
+WARNING: does NOT work on firmware 1.0.999.178 (VIVE Hub 1.2.7). There adbd only
+answers `ls -l /sdcard/`; any other shell command closes at once and `pull` of the map
+directories fails. Kept for older firmware with an open adb shell (pyvut's author had
+one). The planned route is USB HID file opcodes, see docs/roadmap.md approach A.
 
 Usage:
   vut_rooms.py check

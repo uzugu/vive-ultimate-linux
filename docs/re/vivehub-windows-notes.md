@@ -68,7 +68,7 @@ Stronger than the Linux-only hypothesis in [roadmap.md](../roadmap.md):
 
 - HTC's own server has a **"Map Import"** job and a file-transfer path that sends a file from the PC to a tracker
   (inferred). **Correction after a live check:** the PC-side `MAP\` folder is empty; the host tracker holds the map and
-  syncs it to the other trackers itself. Export from the host still needs a route (likely `adb`); import may use the
+  syncs it to the other trackers itself. Export from the host still needs a route (adb is locked down on firmware 1.0.999.178; USB HID is the candidate); import may use the
   file transfer. See [vivehub-windows-map-transfer.md](vivehub-windows-map-transfer.md) section 3.
 - Enumerate checks the tracker serial against its map (`[ENUMERATE_TRACKERS] SN & MAP MISMATCH!`, seen), which
   suggests a map is tied to the set of trackers it was made with. Keep one map per room *per tracker set*.

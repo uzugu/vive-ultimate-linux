@@ -18,7 +18,7 @@ back means rebuilding again. We want:
 
 | # | Approach | How | Risk |
 |---|---|---|---|
-| A | **Map snapshots of the host tracker** (a live check showed the PC `MAP` folder is empty and the host tracker owns the map and syncs it to the others; export likely via adb, import via adb or the file-transfer path, see [re/vivehub-windows-map-transfer.md](re/vivehub-windows-map-transfer.md)) | Maps live on the trackers in `/data/lambda` and `/data/mapdata`. Save = `adb pull` from the host tracker into `rooms/<name>/`. Switch = `adb push` back, then restart tracking (`ALE` / `RESET_MAP` / power-cycle) so the tracker reloads it. Clients resync from the host over Wi-Fi as usual. | Needs adb on the tracker over USB; may need a reboot per switch; map may be tied to the map UUID. |
+| A | **Map snapshots of the host tracker** (the PC `MAP` folder is empty; the host tracker owns the map and syncs it to the others; see [re/vivehub-windows-map-transfer.md](re/vivehub-windows-map-transfer.md)) | Maps live on the trackers in `/data/lambda` and `/data/mapdata`. **adb cannot reach them on firmware 1.0.999.178** (locked-down shell, `pull` fails). Route to prove instead: **USB HID** with the tracker cabled, using file opcodes 0x10 to 0x13 (export) and 0x16 to 0x18 (import) from pyvut's enums, or the Wi-Fi file-transfer messages 22/23 for import. Then restart tracking (`ALE` / `RESET_MAP` / power-cycle) so the tracker reloads it. Clients resync from the host as usual. | HID file payloads are undocumented and untested; the firmware may refuse them too. Older firmware with an open adb shell would allow `vut_rooms.py`, but downgrading is out of scope. |
 | B | **Auto room detection** | Trackers already report `MAP_REUSE_OK` vs `MAP_REUSE_FAIL_FEATURE_DIFF` when relocalising. Try candidate room maps until one reports reuse OK. | Each try costs a reload; order by last used. |
 | C | **Per-room calibration only** | Store origin + headset alignment per room and apply it in our driver, for when a map is rebuilt anyway. | Always works, but no rebuild savings. |
 
@@ -50,10 +50,10 @@ tracker ─adb─▶ room store (snapshots, per-room settings)   │
 
 ## Milestones
 
-1. **M0, hardware baseline**: pyvut streams poses from the dongle on Linux x86-64; confirm adb access to a
-   tracker and list `/data/lambda`, `/data/mapdata`.
-2. **M1, room snapshots (manual)**: CLI `vut room save <name>` / `vut room load <name>`; prove a pulled map
-   re-pushed to the tracker reports `MAP_REUSE_OK`.
+1. **M0, hardware baseline**: pyvut streams poses from the dongle on Linux x86-64; read-only HID `GET_PROPERTY`
+   against a cabled tracker, then try the HID file-read opcodes (adb is locked on 1.0.999.178).
+2. **M1, room snapshots (manual)**: CLI `vut room save <name>` / `vut room load <name>`; prove an exported map
+   re-imported to the tracker reports `MAP_REUSE_OK`.
 3. **M2, daemon + SteamVR**: finish the existing daemon and driver; per-room calibration (approach C).
 4. **M3, GUI**: pair, status, rooms list with one-click switch. Linux x86-64, ARM64, Windows builds in CI.
 5. **M4, auto room detection** (approach B) and our own map-build flow (no VIVE Hub at all).
@@ -61,5 +61,5 @@ tracker ─adb─▶ room store (snapshots, per-room settings)   │
 ## What we need from the hardware owner
 
 - Dongle + at least two trackers, a Linux PC, and ideally a Windows PC with VIVE Hub for comparison.
-- A USB-C cable to plug a tracker in directly (adb + USB HID).
+- A USB-C cable to plug a tracker in directly (USB HID).
 - Two rooms to test switching.

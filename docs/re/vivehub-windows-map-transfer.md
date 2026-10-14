@@ -51,10 +51,8 @@ So the file-transfer path above (the library's "Map Import" job, tracker-side na
 but not what a normal map build uses [guess: it is for import/diagnostic/enterprise use]. Revised room-switching model:
 
 - A **room = the host tracker's map**. Clients follow the host automatically, so we only have to put the right map on the host.
-- **Export** (host to PC) has no known wire path yet. Candidates: `adb pull` of the host's map directories (Linux notes:
-  `/data/lambda`, `/data/mapdata`; HTC's server bundles adb and uses it for firmware), or find a tracker-to-PC upload type
-  (only logs found so far).
-- **Import** (PC to host): the header/bytes/trailer transfer in section 2, then relocate, or `adb push`.
+- **Export** (host to PC): **adb is not a route on firmware 1.0.999.178.** A live check found only `adb shell ls -l /sdcard/` works; every other shell command closes at once, and `pull` of `/data/lambda` and `/data/mapdata` fails (see `vivehub-windows-live-adb-and-prior-art.md`). The leading candidate is now the **USB HID route** with the tracker cabled: pyvut's file opcodes 0x10 to 0x13 (read file) and `GET_PROPERTY` 0xa201. Both are untested; the file payload format is undocumented. The other candidate is a tracker-to-PC upload type over the Wi-Fi link (only logs found so far).
+- **Import** (PC to host): the header/bytes/trailer transfer in section 2 over Wi-Fi, or the HID write opcodes 0x16 to 0x18 over USB, then relocate. `adb push` is not expected to work either.
 - Which tracker is host is per scan (`is host`, slot 4 here), so a room record must also store which serial was host.
 
 ## 3b. How it fits with the wizard pipe
@@ -72,6 +70,6 @@ matched. Match them by logging which port the tracker connects to during a trans
 ## 4. Test plan for hardware (smallest steps first)
 
 0. ~~List the server's listening ports~~ (done, see section 3b).
-1. ~~Look in the PC `MAP` folder after a map build~~ (done: empty). Next: with one tracker plugged in by USB-C and `adb devices` working, run `python3 python/tools/vut_rooms.py check` to see whether the tracker's map directories exist and are readable.
+1. ~~Look in the PC `MAP` folder after a map build~~ (done: empty). ~~Try adb on a cabled tracker~~ (done: locked down on 1.0.999.178). Next: with the tracker cabled, send read-only HID `GET_PROPERTY` requests (0xa201) and see whether the firmware answers; then try file read opcodes 0x10 to 0x13 on a path we know exists.
 2. Run VIVE Hub's own "map import" if the UI exposes one and capture the TCP stream (Wireshark); compare to the packets above.
 3. Only then try our sender, on a spare tracker, with a copy of a known-good map.
