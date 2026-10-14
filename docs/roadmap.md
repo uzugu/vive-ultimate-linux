@@ -18,7 +18,7 @@ back means rebuilding again. We want:
 
 | # | Approach | How | Risk |
 |---|---|---|---|
-| A | **Map snapshots of the host tracker** (the PC `MAP` folder is empty; the host tracker owns the map and syncs it to the others; see [re/vivehub-windows-map-transfer.md](re/vivehub-windows-map-transfer.md)) | Maps live on the trackers in `/data/lambda` and `/data/mapdata`. **adb cannot reach them on firmware 1.0.999.178** (locked-down shell, `pull` fails). Route to prove instead: **USB HID** with the tracker cabled, using file opcodes 0x10 to 0x13 (export) and 0x16 to 0x18 (import) from pyvut's enums, or the Wi-Fi file-transfer messages 22/23 for import. Then restart tracking (`ALE` / `RESET_MAP` / power-cycle) so the tracker reloads it. Clients resync from the host as usual. | HID file payloads are undocumented and untested; the firmware may refuse them too. Older firmware with an open adb shell would allow `vut_rooms.py`, but downgrading is out of scope. |
+| A | **Rooms as maps on the tracker** (the PC `MAP` folder is empty; the host tracker owns the map and syncs it to the others; format in [re/vivehub-map-format.md](re/vivehub-map-format.md)) | **Export works**: HTC's log tool in `-getmap` mode (HID opcode 0x56, type=1) makes `/sdcard/hdlog.tgz` containing `mapdata/` (`general.db`, `map_<id>.db`, `kf_<id>.db`), pulled with adb (the one allowed path). **Import does not yet**: the USB file service sees only `/sdcard`; HTC's "Map Import" (`persist.vbp.map_*`, `autosave0`) is the lead. **Cheaper first test:** `general.db` has `map_size` 3 (`persist.lambda.multimap.size`) and a word index keyed by map id, so the firmware may hold up to 3 rooms itself. Build a second and third map without wiping the first and see whether it recognises and switches by itself. | Multi-map is a hypothesis. Maps contain room images, so they stay on the owner's machine. Import path unknown. adb shell is locked on 1.0.999.178. |
 | B | **Auto room detection** | Trackers already report `MAP_REUSE_OK` vs `MAP_REUSE_FAIL_FEATURE_DIFF` when relocalising. Try candidate room maps until one reports reuse OK. | Each try costs a reload; order by last used. |
 | C | **Per-room calibration only** | Store origin + headset alignment per room and apply it in our driver, for when a map is rebuilt anyway. | Always works, but no rebuild savings. |
 
@@ -50,8 +50,8 @@ tracker ─adb─▶ room store (snapshots, per-room settings)   │
 
 ## Milestones
 
-1. **M0, hardware baseline**: pyvut streams poses from the dongle on Linux x86-64; read-only HID `GET_PROPERTY`
-   against a cabled tracker, then try the HID file-read opcodes (adb is locked on 1.0.999.178).
+1. **M0, hardware baseline**: pyvut streams poses from the dongle on Linux x86-64; map export via `-getmap` is proven; test whether a tracker keeps up to 3 maps
+   (`multimap_main.map_size` = 3) by building more rooms without wiping.
 2. **M1, room snapshots (manual)**: CLI `vut room save <name>` / `vut room load <name>`; prove an exported map
    re-imported to the tracker reports `MAP_REUSE_OK`.
 3. **M2, daemon + SteamVR**: finish the existing daemon and driver; per-room calibration (approach C).

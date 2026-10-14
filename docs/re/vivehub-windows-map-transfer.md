@@ -51,8 +51,9 @@ So the file-transfer path above (the library's "Map Import" job, tracker-side na
 but not what a normal map build uses [guess: it is for import/diagnostic/enterprise use]. Revised room-switching model:
 
 - A **room = the host tracker's map**. Clients follow the host automatically, so we only have to put the right map on the host.
-- **Export** (host to PC): **adb is not a route on firmware 1.0.999.178.** A live check found only `adb shell ls -l /sdcard/` works; every other shell command closes at once, and `pull` of `/data/lambda` and `/data/mapdata` fails (see `vivehub-windows-live-adb-and-prior-art.md`). The leading candidate is now the **USB HID route** with the tracker cabled: pyvut's file opcodes 0x10 to 0x13 (read file) and `GET_PROPERTY` 0xa201. Both are untested; the file payload format is undocumented. The other candidate is a tracker-to-PC upload type over the Wi-Fi link (only logs found so far).
-- **Import** (PC to host): the header/bytes/trailer transfer in section 2 over Wi-Fi, or the HID write opcodes 0x16 to 0x18 over USB, then relocate. `adb push` is not expected to work either.
+- **Export** (tracker to PC): **proven**, but not with adb shell (locked on firmware 1.0.999.178). HTC's log tool with `-getmap` sends HID opcode 0x56 with type=1; the tracker builds `/sdcard/hdlog.tgz` (about 4 minutes, 298 MB) holding `data/hdlog/mapdata/` as three SQLite files; `adb pull /sdcard/hdlog.tgz` works. Procedure and structure: [vivehub-map-format.md](vivehub-map-format.md).
+- **Import** (PC to tracker): **unsolved.** The USB file service only sees `/sdcard`, and adb push into `/data` is not expected to work. Leads: HTC's "Map Import" (`persist.vbp.map_*` plus `autosave0`), or the Wi-Fi transfer messages 22/23 in section 2.
+- **Multi-map hypothesis:** `general.db` reports `map_size` 3 and indexes visual words by map id, so the tracker may keep up to three rooms. Untested.
 - Which tracker is host is per scan (`is host`, slot 4 here), so a room record must also store which serial was host.
 
 ## 3b. How it fits with the wizard pipe
@@ -70,6 +71,6 @@ matched. Match them by logging which port the tracker connects to during a trans
 ## 4. Test plan for hardware (smallest steps first)
 
 0. ~~List the server's listening ports~~ (done, see section 3b).
-1. ~~Look in the PC `MAP` folder after a map build~~ (done: empty). ~~Try adb on a cabled tracker~~ (done: locked down on 1.0.999.178). Next: with the tracker cabled, send read-only HID `GET_PROPERTY` requests (0xa201) and see whether the firmware answers; then try file read opcodes 0x10 to 0x13 on a path we know exists.
+1. ~~Look in the PC `MAP` folder after a map build~~ (done: empty). ~~Export a map~~ (done, see vivehub-map-format.md). Next: build a second and third room without wiping and re-export, to see whether `general.db` holds several maps and the tracker switches on its own.
 2. Run VIVE Hub's own "map import" if the UI exposes one and capture the TCP stream (Wireshark); compare to the packets above.
 3. Only then try our sender, on a spare tracker, with a copy of a known-good map.
