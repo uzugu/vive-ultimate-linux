@@ -27,6 +27,9 @@ What is not done yet:
 ## Repository layout
 
 - [docs/implementation-brief.md](docs/implementation-brief.md): architecture and research summary
+- [docs/roadmap.md](docs/roadmap.md): plan for the multiplatform app and room switching
+- [docs/re/vivehub-linux-notes.md](docs/re/vivehub-linux-notes.md): reverse-engineering notes on VIVE Hub for Linux
+- [python/tools/vut_rooms.py](python/tools/vut_rooms.py): experimental map save/restore over adb (room switching prototype)
 - [docs/prior-art-survey.md](docs/prior-art-survey.md): existing Ultimate Tracker reverse-engineering projects and HTC's Linux beta
 - [protocol/pose-v1.md](protocol/pose-v1.md): local IPC contract between the daemon and the SteamVR driver
 - [python/pose_daemon](python/pose_daemon): Python daemon and source adapters
