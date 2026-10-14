@@ -18,7 +18,7 @@ back means rebuilding again. We want:
 
 | # | Approach | How | Risk |
 |---|---|---|---|
-| A | **Map snapshots over adb** | Maps live on the trackers in `/data/lambda` and `/data/mapdata`. Save = `adb pull` from the host tracker into `rooms/<name>/`. Switch = `adb push` back, then restart tracking (`ALE` / `RESET_MAP` / power-cycle) so the tracker reloads it. Clients resync from the host over Wi-Fi as usual. | Needs adb on the tracker over USB; may need a reboot per switch; map may be tied to the map UUID. |
+| A | **Map snapshots** (adb, or better over the tracker's Wi-Fi file transfer: HTC's Windows server has a "Map Import" job and a PC-side `MAP\` folder, see [re/vivehub-windows-notes.md](re/vivehub-windows-notes.md)) | Maps live on the trackers in `/data/lambda` and `/data/mapdata`. Save = `adb pull` from the host tracker into `rooms/<name>/`. Switch = `adb push` back, then restart tracking (`ALE` / `RESET_MAP` / power-cycle) so the tracker reloads it. Clients resync from the host over Wi-Fi as usual. | Needs adb on the tracker over USB; may need a reboot per switch; map may be tied to the map UUID. |
 | B | **Auto room detection** | Trackers already report `MAP_REUSE_OK` vs `MAP_REUSE_FAIL_FEATURE_DIFF` when relocalising. Try candidate room maps until one reports reuse OK. | Each try costs a reload; order by last used. |
 | C | **Per-room calibration only** | Store origin + headset alignment per room and apply it in our driver, for when a map is rebuilt anyway. | Always works, but no rebuild savings. |
 
