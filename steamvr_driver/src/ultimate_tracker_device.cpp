@@ -19,7 +19,20 @@ vr::EVRInitError UltimateTrackerDevice::Activate(std::uint32_t object_id)
     vr::VRProperties()->SetStringProperty(property_container_, vr::Prop_TrackingSystemName_String, "ultimate_tracker_linux");
     vr::VRProperties()->SetStringProperty(property_container_, vr::Prop_ModelNumber_String, "VIVE Ultimate Tracker");
     vr::VRProperties()->SetStringProperty(property_container_, vr::Prop_SerialNumber_String, serial_.c_str());
-    vr::VRProperties()->SetBoolProperty(property_container_, vr::Prop_DeviceProvidesBatteryStatus_Bool, false);
+    vr::VRProperties()->SetBoolProperty(property_container_, vr::Prop_DeviceProvidesBatteryStatus_Bool, true);
+    vr::VRProperties()->SetStringProperty(
+        property_container_, vr::Prop_InputProfilePath_String, "{ultimate_tracker_linux}/input/ultimate_tracker_profile.json");
+
+    // Same button set HTC's driver exposes; the daemon sends a bitmask (see protocol/pose-v1.md).
+    static const char *const kButtonPaths[kButtonCount] = {
+        "/input/power/click", "/input/grip/click", "/input/trigger/click", "/input/thumb/click",
+        "/input/application_menu/click"};
+    for (int i = 0; i < kButtonCount; ++i)
+    {
+        vr::VRDriverInput()->CreateBooleanComponent(property_container_, kButtonPaths[i], &button_handles_[i]);
+    }
+    PublishBattery();
+    PublishButtons();
 
     Logf("activated tracker %s as object_id=%u", serial_.c_str(), object_id_);
     return vr::VRInitError_None;
@@ -30,6 +43,10 @@ void UltimateTrackerDevice::Deactivate()
     Logf("deactivated tracker %s", serial_.c_str());
     object_id_ = vr::k_unTrackedDeviceIndexInvalid;
     property_container_ = vr::k_ulInvalidPropertyContainer;
+    for (auto &handle : button_handles_)
+    {
+        handle = vr::k_ulInvalidInputComponentHandle;
+    }
 }
 
 void UltimateTrackerDevice::EnterStandby() {}
@@ -105,6 +122,42 @@ bool UltimateTrackerDevice::IsPoseUsable(const TrackedPose &pose)
     const bool has_nonzero_position = std::abs(pose.position_m.x) > epsilon || std::abs(pose.position_m.y) > epsilon ||
                                       std::abs(pose.position_m.z) > epsilon;
     return has_nonzero_position;
+}
+
+void UltimateTrackerDevice::UpdateBattery(const BatteryStatus &battery)
+{
+    battery_ = battery;
+    have_battery_ = true;
+    PublishBattery();
+}
+
+void UltimateTrackerDevice::UpdateButtons(const ButtonState &buttons)
+{
+    button_mask_ = buttons.mask;
+    PublishButtons();
+}
+
+void UltimateTrackerDevice::PublishBattery()
+{
+    if (property_container_ == vr::k_ulInvalidPropertyContainer || !have_battery_)
+    {
+        return;
+    }
+    vr::VRProperties()->SetFloatProperty(
+        property_container_, vr::Prop_DeviceBatteryPercentage_Float, static_cast<float>(battery_.percent) / 100.0f);
+    vr::VRProperties()->SetBoolProperty(property_container_, vr::Prop_DeviceIsCharging_Bool, battery_.charging);
+}
+
+void UltimateTrackerDevice::PublishButtons()
+{
+    if (property_container_ == vr::k_ulInvalidPropertyContainer)
+    {
+        return;
+    }
+    for (int i = 0; i < kButtonCount; ++i)
+    {
+        vr::VRDriverInput()->UpdateBooleanComponent(button_handles_[i], (button_mask_ & (1 << i)) != 0, 0.0);
+    }
 }
 
 void UltimateTrackerDevice::MarkDisconnected()

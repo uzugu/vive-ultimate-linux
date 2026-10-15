@@ -1,0 +1,7 @@
+# BATTERY and BUTTONS lines every implementation must accept.
+BATTERY 1 AA:BB:CC 86 0
+BATTERY 1 tracker-1 0 1
+BATTERY 1 t 100 0
+BUTTONS 1 AA:BB:CC 0
+BUTTONS 1 AA:BB:CC 31
+BUTTONS 1 t 6

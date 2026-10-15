@@ -50,6 +50,28 @@ Field meanings:
 - `tracking_code`: raw `pyvut` tracking status integer, `-999` when unknown (v2 only)
 - `tracking_label`: decoded tracking label, `unknown` when unavailable (v2 only)
 
+## Status messages
+
+The daemon also sends two other line types on the same stream. A consumer that does not know a tag must ignore
+the line (the C++ client does; Python's `iter_poses()` skips them, `iter_messages()` returns them).
+
+```text
+BATTERY 1 <serial> <percent 0-100> <charging 0|1>
+BUTTONS 1 <serial> <mask 0-31>
+```
+
+`mask` bits, in HTC's order: 1 power (system button), 2 grip, 4 trigger, 8 trackpad, 16 menu. The driver exposes
+them as `/input/power/click`, `/input/grip/click`, `/input/trigger/click`, `/input/thumb/click` and
+`/input/application_menu/click` on each tracker, and the battery as SteamVR's battery percentage and charging
+properties. The daemon sends a status line when it changes and repeats all of them about once a second; a new
+client gets the last known state straight away. Test vectors: [fixtures/status_valid.txt](fixtures/status_valid.txt),
+[fixtures/status_invalid.txt](fixtures/status_invalid.txt).
+
+Where the values come from: HTC's tracker reports battery in the second peripheral byte
+(`percent = (byte & 0x3f) * 2`, bit 6 charging; see `docs/re/pairing-and-status.md` 5.1), implemented as
+`battery_from_peripheral_byte`. The mock source produces both message types; the `pyvut` source does not yet,
+because where pyvut exposes those bytes is unverified.
+
 ## Example
 
 ```text

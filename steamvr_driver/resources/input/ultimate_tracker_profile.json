@@ -1,0 +1,13 @@
+{
+  "jsonid": "input_profile",
+  "controller_type": "ultimate_tracker_linux",
+  "device_class": "GenericTracker",
+  "resource_root": "{ultimate_tracker_linux}",
+  "input_source": {
+    "/input/power": { "type": "button", "click": true },
+    "/input/grip": { "type": "button", "click": true },
+    "/input/trigger": { "type": "button", "click": true },
+    "/input/thumb": { "type": "button", "click": true },
+    "/input/application_menu": { "type": "button", "click": true }
+  }
+}

@@ -89,6 +89,13 @@ bool IpcPoseClient::IsConnected() const
 
 void IpcPoseClient::Poll(const std::function<void(const TrackedPose &)> &on_pose)
 {
+    Handlers handlers;
+    handlers.on_pose = on_pose;
+    Poll(handlers);
+}
+
+void IpcPoseClient::Poll(const Handlers &handlers)
+{
     if (!IsConnected() && !Connect())
     {
         return;
@@ -133,10 +140,30 @@ void IpcPoseClient::Poll(const std::function<void(const TrackedPose &)> &on_pose
         std::string line = read_buffer_.substr(0, line_end);
         read_buffer_.erase(0, line_end + 1);
 
-        TrackedPose pose;
-        if (ParsePoseLine(line, pose))
+        // Unknown tags are ignored on purpose: newer daemons may send message types this driver predates.
+        if (line.compare(0, 5, "POSE ") == 0)
         {
-            on_pose(pose);
+            TrackedPose pose;
+            if (handlers.on_pose && ParsePoseLine(line, pose))
+            {
+                handlers.on_pose(pose);
+            }
+        }
+        else if (line.compare(0, 8, "BATTERY ") == 0)
+        {
+            BatteryStatus battery;
+            if (handlers.on_battery && ParseBatteryLine(line, battery))
+            {
+                handlers.on_battery(battery);
+            }
+        }
+        else if (line.compare(0, 8, "BUTTONS ") == 0)
+        {
+            ButtonState buttons;
+            if (handlers.on_buttons && ParseButtonsLine(line, buttons))
+            {
+                handlers.on_buttons(buttons);
+            }
         }
     }
 }
@@ -196,6 +223,37 @@ bool IpcPoseClient::ParsePoseLine(const std::string &line, TrackedPose &out_pose
         }
     }
 
+    return true;
+}
+
+bool IpcPoseClient::ParseBatteryLine(const std::string &line, BatteryStatus &out)
+{
+    std::istringstream stream(line);
+    std::string tag, extra;
+    int version = 0, charging = 0;
+    BatteryStatus parsed;
+    if (!(stream >> tag >> version >> parsed.serial >> parsed.percent >> charging) || tag != "BATTERY" || version != 1 ||
+        (stream >> extra) || parsed.percent < 0 || parsed.percent > 100 || (charging != 0 && charging != 1))
+    {
+        return false;
+    }
+    parsed.charging = charging == 1;
+    out = parsed;
+    return true;
+}
+
+bool IpcPoseClient::ParseButtonsLine(const std::string &line, ButtonState &out)
+{
+    std::istringstream stream(line);
+    std::string tag, extra;
+    int version = 0;
+    ButtonState parsed;
+    if (!(stream >> tag >> version >> parsed.serial >> parsed.mask) || tag != "BUTTONS" || version != 1 ||
+        (stream >> extra) || parsed.mask < 0 || parsed.mask > kButtonAll)
+    {
+        return false;
+    }
+    out = parsed;
     return true;
 }
 

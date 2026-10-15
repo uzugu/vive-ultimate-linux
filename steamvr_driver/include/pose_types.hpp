@@ -34,4 +34,28 @@ struct TrackedPose
     std::uint64_t timestamp_ns = 0;
 };
 
+// Button bits in ButtonState::mask (HTC order: system button, grip, trigger, trackpad, menu).
+enum ButtonBit : int
+{
+    kButtonPower = 1,
+    kButtonGrip = 2,
+    kButtonTrigger = 4,
+    kButtonTrackpad = 8,
+    kButtonMenu = 16,
+    kButtonAll = 31,
+};
+
+struct BatteryStatus
+{
+    std::string serial;
+    int percent = 0;
+    bool charging = false;
+};
+
+struct ButtonState
+{
+    std::string serial;
+    int mask = 0;
+};
+
 } // namespace uts

@@ -1,0 +1,12 @@
+# BATTERY and BUTTONS lines every implementation must reject.
+BATTERY 1 a 101 0
+BATTERY 1 a -1 0
+BATTERY 1 a 50 2
+BATTERY 2 a 50 0
+BATTERY 1 a 50
+BATTERY 1 a 50 0 extra
+BUTTONS 1 a 32
+BUTTONS 1 a -1
+BUTTONS 1 a
+BUTTONS 1 a x
+BUTTONS 2 a 1

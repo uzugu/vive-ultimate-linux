@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import math
 
-from .models import TrackerPose
+from .models import BUTTON_ALL, BatteryStatus, ButtonState, TrackerPose
 
 
 PROTOCOL_VERSION = 2
@@ -89,3 +89,53 @@ def encode_pose_line(pose: TrackerPose) -> bytes:
         "unknown" if pose.tracking_label is None else pose.tracking_label,
     ]
     return (" ".join(parts) + "\n").encode("utf-8")
+
+
+def encode_battery_line(status: BatteryStatus) -> bytes:
+    return f"BATTERY 1 {status.serial} {status.percent} {int(status.charging)}\n".encode("utf-8")
+
+
+def encode_buttons_line(state: ButtonState) -> bytes:
+    return f"BUTTONS 1 {state.serial} {state.mask}\n".encode("utf-8")
+
+
+def decode_battery_line(line: str) -> BatteryStatus:
+    parts = line.strip().split(" ")
+    if len(parts) != 5 or parts[0] != "BATTERY" or parts[1] != "1":
+        raise ValueError("malformed BATTERY line")
+    percent, charging = int(parts[3]), int(parts[4])
+    if not 0 <= percent <= 100 or charging not in (0, 1):
+        raise ValueError("BATTERY value out of range")
+    return BatteryStatus(serial=parts[2], percent=percent, charging=bool(charging))
+
+
+def decode_buttons_line(line: str) -> ButtonState:
+    parts = line.strip().split(" ")
+    if len(parts) != 4 or parts[0] != "BUTTONS" or parts[1] != "1":
+        raise ValueError("malformed BUTTONS line")
+    mask = int(parts[3])
+    if not 0 <= mask <= BUTTON_ALL:
+        raise ValueError("BUTTONS mask out of range")
+    return ButtonState(serial=parts[2], mask=mask)
+
+
+def decode_message(line: str) -> TrackerPose | BatteryStatus | ButtonState:
+    """Decode any line the daemon sends. Raises ValueError for unknown or malformed lines."""
+    tag = line.lstrip().split(" ", 1)[0]
+    if tag == "POSE":
+        return decode_pose_line(line)
+    if tag == "BATTERY":
+        return decode_battery_line(line)
+    if tag == "BUTTONS":
+        return decode_buttons_line(line)
+    raise ValueError(f"unknown message tag: {tag!r}")
+
+
+def battery_from_peripheral_byte(p1: int) -> tuple[int, bool] | None:
+    """Decode HTC's second peripheral byte (docs/re/pairing-and-status.md 5.1).
+
+    Returns (percent, charging), or None when bit 7 marks pogo-pin accessory status instead.
+    """
+    if p1 & 0x80:
+        return None
+    return min(100, (p1 & 0x3F) * 2), bool(p1 & 0x40)

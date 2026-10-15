@@ -44,7 +44,8 @@ void DeviceProvider::RunFrame()
     calibration_.Refresh();
 
     const bool was_connected = pose_client_.IsConnected();
-    pose_client_.Poll([this](const TrackedPose &raw_pose) {
+    IpcPoseClient::Handlers handlers;
+    handlers.on_pose = [this](const TrackedPose &raw_pose) {
         TrackedPose pose = raw_pose;
         // Judge usability on the raw pose: a calibration offset must not make an all-zero pose look live.
         if (UltimateTrackerDevice::IsPoseUsable(pose))
@@ -56,7 +57,20 @@ void DeviceProvider::RunFrame()
         {
             device->UpdateFromPose(pose);
         }
-    });
+    };
+    handlers.on_battery = [this](const BatteryStatus &battery) {
+        if (auto *device = EnsureDeviceForSerial(battery.serial))
+        {
+            device->UpdateBattery(battery);
+        }
+    };
+    handlers.on_buttons = [this](const ButtonState &buttons) {
+        if (auto *device = EnsureDeviceForSerial(buttons.serial))
+        {
+            device->UpdateButtons(buttons);
+        }
+    };
+    pose_client_.Poll(handlers);
 
     if (was_connected && !pose_client_.IsConnected())
     {
