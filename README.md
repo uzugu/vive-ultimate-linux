@@ -34,6 +34,7 @@ What is not done yet:
 - [docs/windows-parity.md](docs/windows-parity.md): Windows VIVE Hub feature parity checklist
 - [docs/re/vivehub-linux-notes.md](docs/re/vivehub-linux-notes.md): reverse-engineering notes on VIVE Hub for Linux
 - [docs/re/vivehub-map-import.md](docs/re/vivehub-map-import.md): how HTC's server imports a map (`autosave0`), static analysis
+- [python/tools/vut_ft_listen.py](python/tools/vut_ft_listen.py): passive listener for the tracker file-transfer port 8053 (logs frames, sends nothing)
 - [python/tools/vut_rooms.py](python/tools/vut_rooms.py): experimental map save/restore over adb (does not work on firmware 1.0.999.178; USB HID route planned)
 - [docs/prior-art-survey.md](docs/prior-art-survey.md): existing Ultimate Tracker reverse-engineering projects and HTC's Linux beta
 - [protocol/pose-v1.md](protocol/pose-v1.md): local IPC contract between the daemon and the SteamVR driver
