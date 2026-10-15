@@ -87,6 +87,7 @@ cmake --build steamvr_driver/build
 The staged runtime layout is emitted under `steamvr_driver/build/stage/ultimate_tracker_linux`.
 
 - [docs/roomstore.md](docs/roomstore.md): per-room calibration and switching
+- [docs/mapbuild.md](docs/mapbuild.md): map building (room setup): what VIVE Hub does, our model, Map tab, hardware steps
 - [docs/calibration.md](docs/calibration.md): aligning tracker space with the SteamVR playspace
 
 ## Tests

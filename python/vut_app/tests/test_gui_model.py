@@ -133,9 +133,16 @@ class TkSmokeTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmp:
                 store = RoomStore(f"{tmp}/rooms")
                 store.create("Room A")
-                refresh = build(root, state, RoomsModel(store, f"{tmp}/cal.txt"))
+                from vut_app.map_model import MapModel
+                from vut_mapbuild import RecordingLink
+
+                mapper = MapModel(RecordingLink())
+                refresh = build(root, state, RoomsModel(store, f"{tmp}/cal.txt"), mapper)
+                refresh()
+                mapper.start(0)
                 refresh()
                 root.update()
+                self.assertEqual(mapper.view().phase, "starting")
         finally:
             root.destroy()
 

@@ -49,6 +49,12 @@ def _room() -> Callable[[], object]:
     return main
 
 
+def _map() -> Callable[[], object]:
+    from .map_cli import main
+
+    return main
+
+
 def _gui() -> Callable[[], object]:
     from .gui import main
 
@@ -63,6 +69,7 @@ COMMANDS: dict[str, tuple[Callable[[], Callable[[], object]], str]] = {
     "calibrate": (_calibrate, "fit the SteamVR calibration from captures"),
     "gui": (_gui, "open the status / rooms / pairing window (needs Tk)"),
     "room": (_room, "per-room calibration store (list/new/use/...)"),
+    "map": (_map, "map building: plan, replay a server log, check quality (no hardware access)"),
 }
 
 

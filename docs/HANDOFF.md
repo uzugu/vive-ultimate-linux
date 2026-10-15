@@ -21,7 +21,7 @@ Order: first parity with VIVE Hub for Windows 1.2.7 ([windows-parity.md](windows
 | M1 | Manual room snapshots (`save` / `load`), re-imported map reports `MAP_REUSE_OK` | Save half proven (export). **Load half unsolved.** |
 | M2 | Daemon + SteamVR driver, per-room calibration | Linux daemon and driver skeleton merged with CI. Calibration offset merged (PR #8), battery/buttons/haptics merged. |
 | M3 | GUI: pair, status, rooms, one-click switch; builds for all three platforms | Not started |
-| M4 | Auto room detection (`MAP_REUSE_*`), our own map-build flow | Not started |
+| M4 | Auto room detection (`MAP_REUSE_*`), our own map-build flow | Map-build model, `vut map` and Map tab merged (PR map-creation); transport waits on T17 captures. Auto detection not started. |
 
 ## 2. What is on `main` (PRs #1 to #6 merged; CI runs every test)
 
@@ -111,6 +111,8 @@ Hardware steps additionally need the owner's approval (section 7).
 | T13 | PC | open | Map import sender, last: needs T1 and T2 answers; spare tracker with a backed-up map. First step is a 1 KB file to `/sdcard/` and reading the u24 reply (`vivehub-map-import.md` §4). Earlier sessions were stopped by the automatic safety check here (section 9): if it happens, tell the owner, do not retry blindly. | yes |
 | T14 | CLOUD | open | Docs and housekeeping: keep this file and the roadmap current, README refresh, read the VIVE EULA reverse-engineering clause and record the outcome before publishing beyond names/ids/layouts. | no |
 | T15 | PC | open | Collect logs on request (`hdlog.tgz`, server/driver logs) and keep `%USERPROFILE%\Documents\VIVE-map-backups` current; check free disk on C: first (it was full). | yes |
+| T16 | CLOUD | done except transport (PR map-creation) | `python/vut_mapbuild` (command table, log parser, state machine, quality), `vut map` (`plan`, `replay`, `quality`), Map tab in `vut gui`; replay test on a real build. See `docs/mapbuild.md`. Not done: the dongle transport (HID framing of ASCII commands), scan-event/end/cancel commands (need T17). | no |
+| T17 | PC | open | Map-building validation, owner approves each step: `vut map replay` on the current server log, then USBPcap capture of one Hub-built map and one cancelled build, exact steps in `docs/mapbuild.md` section 5. Back up the current map first: a build replaces it. Feeds T16's transport. | yes |
 
 Suggested order: T1, T2, T3 and T5 first (they unblock the rest), then T7/T8, T4/T6, T10/T9, T12, T13 last.
 

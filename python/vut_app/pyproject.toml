@@ -7,7 +7,7 @@ name = "vut-app"
 version = "0.1.0"
 description = "Single `vut` entry point for the VIVE Ultimate Tracker tools (daemon, rooms, calibration, diagnostics)"
 requires-python = ">=3.10"
-dependencies = []  # install pose_daemon and vut_roomstore alongside (not on PyPI)
+dependencies = []  # install pose_daemon, vut_roomstore and vut_mapbuild alongside (not on PyPI)
 
 [project.scripts]
 vut = "vut_app.cli:main"
