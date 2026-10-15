@@ -69,6 +69,14 @@ From `hdlog-getmap2.tgz` (log lines only, no map data):
 
 So the likely import is **not** the VBP `autosave0` route. It is to behave like a host tracker: send `file_pack_info` and the map files over the transfer protocol to the paths a host would use. The unknowns are the pack-info JSON schema and whether the receiver verifies a signature.
 
+### 3a.1 The transfer protocol on port 8053, as the tracker logs it (log lines from one client boot, step 3)
+
+- Message families: **u11 to u14 = upload** (tracker to host: u11 hello with keepalive, u12 header, data, u13 trailer with `crc=`, u14 status) and **u21 to u24 = download** (host to tracker: u21 hello, u22 header with size, `mtu=1048576` and the output path, data, u23 trailer, u24 status). Our PC-side messages 22 and 23 are the download header and trailer; 24 is the tracker's status; 21 carries the id. The CRC is the same CRC-32 (`crc=912A73B8` for a 217-byte file).
+- **The receiving tracker dials out.** The host first sends an ack string `FK<n>` over the control link (`FK10` seen), the tracker answers `ft_download: filename=<n>`, connects to `<host>:8053`, and fetches file index `<n>`. The path it writes to comes in message 22. So a host registers a file table and the receiver pulls by index.
+- **State acks** around it (control link, `P61:<key>,<value>`): `P61:0,1` transmission ready, `P61:1,1` first file received (the 219-byte pack-info JSON), `P61:2,1` host "ED" received (the 426-byte public key). The map itself follows later (`P61:3`).
+- The tracker also uploads its own `file_pack_info_<n>_0.json` (217 bytes) and `pubkey.pem` (426 bytes, a PEM public key) to the host's `ed/` folder, in the same boot.
+- This exchange is the identity step (pack info plus key). The map files are not in that log window; step 4 looks for them.
+
 ## 3b. Two obstacles found in the tracker logs (not in the PC binaries)
 
 - **Signed packs.** On every boot a client logs `/data/lambda/8/ed/file_pack_info_<n>_0.json` and stores the sending tracker's `/data/.ssl/pubkey.pem` as `<n>_0_pubkey.pem`
