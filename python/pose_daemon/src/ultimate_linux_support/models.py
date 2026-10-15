@@ -51,3 +51,29 @@ class HapticPulse:
     duration_s: float
     frequency_hz: float
     amplitude: float
+
+
+@dataclass(slots=True)
+class Hello:
+    """Daemon to client, first line on connect: who is talking."""
+
+    daemon_version: str
+    source: str
+
+
+@dataclass(slots=True)
+class DeviceInfo:
+    """Daemon to client: a tracker started or stopped delivering poses."""
+
+    serial: str
+    tracker_index: int
+    connected: bool
+
+
+@dataclass(slots=True)
+class Event:
+    """Daemon to client: something worth surfacing that is not a per-tracker state value."""
+
+    kind: str
+    serial: str | None
+    detail: str | None

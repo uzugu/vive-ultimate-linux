@@ -1,0 +1,14 @@
+# HELLO, DEVICE and EVENT lines every implementation must reject.
+HELLO 1
+HELLO 2 0.1.0 mock
+HELLO 1 0.1.0 mock extra
+DEVICE 1 a 0
+DEVICE 1 a -1 1
+DEVICE 1 a 0 2
+DEVICE 1 a x 1
+DEVICE 2 a 0 1
+EVENT 1 source_error -
+EVENT 1 Bad_Kind - -
+EVENT 1 1bad - -
+EVENT 2 source_error - -
+EVENT 1 source_error - - extra

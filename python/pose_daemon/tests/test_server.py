@@ -8,7 +8,7 @@ from dataclasses import replace
 
 from ultimate_linux_support.endpoint import parse_endpoint
 from ultimate_linux_support.models import TrackerPose
-from ultimate_linux_support.models import BatteryStatus, ButtonState
+from ultimate_linux_support.models import BatteryStatus, ButtonState, DeviceInfo, Event, Hello
 from ultimate_linux_support.protocol import decode_message, decode_pose_line
 from ultimate_linux_support.server import PoseServer
 from ultimate_linux_support.sources import MockPoseSource, PoseSource, PyVutPoseSource
@@ -75,6 +75,56 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(p.status == "ok" for p in poses))
         if sys.platform != "win32":
             self.assertFalse(os.path.exists(self.path))
+
+    async def _read_messages(self, want: int) -> list:
+        reader, writer = await open_connection(self.path)
+        try:
+            messages = []
+            while len(messages) < want:
+                line = await asyncio.wait_for(reader.readline(), timeout=5)
+                messages.append(decode_message(line.decode()))
+            return messages
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    async def test_hello_first_then_devices(self) -> None:
+        server = PoseServer(self.path, MockPoseSource(tracker_count=2), hz=200)
+        await server.start()
+        try:
+            await asyncio.sleep(0.1)  # let the roster fill so a late joiner gets it from the cache
+            messages = await self._read_messages(8)
+        finally:
+            await server.stop()
+        self.assertIsInstance(messages[0], Hello)
+        self.assertEqual(messages[0].source, "mock")
+        devices = {m.serial: m for m in messages if isinstance(m, DeviceInfo)}
+        self.assertEqual(set(devices), {"mock-0", "mock-1"})
+        self.assertTrue(all(d.connected for d in devices.values()))
+
+    async def test_source_error_event_sent_once_per_outage(self) -> None:
+        class Broken(MockPoseSource):
+            async def sample(self):
+                raise RuntimeError("down")
+
+        server = PoseServer(self.path, Broken(1), hz=200)
+        await server.start()
+        try:
+            reader, writer = await open_connection(self.path)
+            events = []
+            for _ in range(10):
+                line = await asyncio.wait_for(reader.readline(), timeout=5)
+                message = decode_message(line.decode())
+                if isinstance(message, Event):
+                    events.append(message)
+                if events:
+                    await asyncio.sleep(0.1)  # several failing cycles must not repeat the event
+                    break
+            writer.close()
+            await writer.wait_closed()
+        finally:
+            await server.stop()
+        self.assertEqual([e.kind for e in events], ["source_error"])
 
     async def test_survives_source_error(self) -> None:
         server = PoseServer(self.path, FlakySource(), hz=200)

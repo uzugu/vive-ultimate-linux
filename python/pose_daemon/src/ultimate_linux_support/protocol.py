@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import math
 
-from .models import BUTTON_ALL, BatteryStatus, ButtonState, HapticPulse, TrackerPose
+import re
+
+from .models import BUTTON_ALL, BatteryStatus, ButtonState, DeviceInfo, Event, HapticPulse, Hello, TrackerPose
 
 
 PROTOCOL_VERSION = 2
@@ -119,7 +121,61 @@ def decode_buttons_line(line: str) -> ButtonState:
     return ButtonState(serial=parts[2], mask=mask)
 
 
-def decode_message(line: str) -> TrackerPose | BatteryStatus | ButtonState:
+_TOKEN = re.compile(r"[^\s]{1,64}\Z")
+_KIND = re.compile(r"[a-z][a-z0-9_]{0,31}\Z")
+
+
+def _token(value: str, what: str) -> str:
+    if not _TOKEN.match(value):
+        raise ValueError(f"bad {what}")
+    return value
+
+
+def encode_hello_line(hello: Hello) -> bytes:
+    return f"HELLO 1 {_token(hello.daemon_version, 'version')} {_token(hello.source, 'source')}\n".encode("utf-8")
+
+
+def decode_hello_line(line: str) -> Hello:
+    parts = line.strip().split(" ")
+    if len(parts) != 4 or parts[0] != "HELLO" or parts[1] != "1":
+        raise ValueError("malformed HELLO line")
+    return Hello(daemon_version=_token(parts[2], "version"), source=_token(parts[3], "source"))
+
+
+def encode_device_line(device: DeviceInfo) -> bytes:
+    return f"DEVICE 1 {_token(device.serial, 'serial')} {device.tracker_index} {int(device.connected)}\n".encode("utf-8")
+
+
+def decode_device_line(line: str) -> DeviceInfo:
+    parts = line.strip().split(" ")
+    if len(parts) != 5 or parts[0] != "DEVICE" or parts[1] != "1":
+        raise ValueError("malformed DEVICE line")
+    index, connected = int(parts[3]), int(parts[4])
+    if index < 0 or connected not in (0, 1):
+        raise ValueError("DEVICE value out of range")
+    return DeviceInfo(serial=_token(parts[2], "serial"), tracker_index=index, connected=bool(connected))
+
+
+def encode_event_line(event: Event) -> bytes:
+    if not _KIND.match(event.kind):
+        raise ValueError("bad event kind")
+    serial = _token(event.serial, "serial") if event.serial else "-"
+    detail = _token(event.detail, "detail") if event.detail else "-"
+    return f"EVENT 1 {event.kind} {serial} {detail}\n".encode("utf-8")
+
+
+def decode_event_line(line: str) -> Event:
+    parts = line.strip().split(" ")
+    if len(parts) != 5 or parts[0] != "EVENT" or parts[1] != "1" or not _KIND.match(parts[2]):
+        raise ValueError("malformed EVENT line")
+    return Event(
+        kind=parts[2],
+        serial=None if parts[3] == "-" else _token(parts[3], "serial"),
+        detail=None if parts[4] == "-" else _token(parts[4], "detail"),
+    )
+
+
+def decode_message(line: str) -> TrackerPose | BatteryStatus | ButtonState | Hello | DeviceInfo | Event:
     """Decode any line the daemon sends. Raises ValueError for unknown or malformed lines."""
     tag = line.lstrip().split(" ", 1)[0]
     if tag == "POSE":
@@ -128,6 +184,12 @@ def decode_message(line: str) -> TrackerPose | BatteryStatus | ButtonState:
         return decode_battery_line(line)
     if tag == "BUTTONS":
         return decode_buttons_line(line)
+    if tag == "HELLO":
+        return decode_hello_line(line)
+    if tag == "DEVICE":
+        return decode_device_line(line)
+    if tag == "EVENT":
+        return decode_event_line(line)
     raise ValueError(f"unknown message tag: {tag!r}")
 
 

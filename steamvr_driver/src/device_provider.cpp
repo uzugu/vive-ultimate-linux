@@ -70,6 +70,13 @@ void DeviceProvider::RunFrame()
             device->UpdateButtons(buttons);
         }
     };
+    handlers.on_hello = [](const HelloInfo &hello) {
+        Logf("pose daemon %s, source %s", hello.daemon_version.c_str(), hello.source.c_str());
+    };
+    handlers.on_event = [](const EventInfo &event) {
+        Logf("daemon event %s serial=%s detail=%s", event.kind.c_str(), event.serial.empty() ? "-" : event.serial.c_str(),
+             event.detail.empty() ? "-" : event.detail.c_str());
+    };
     pose_client_.Poll(handlers);
     ForwardHapticEvents();
 

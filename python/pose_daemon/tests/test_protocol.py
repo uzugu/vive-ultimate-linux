@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from ultimate_linux_support.models import BUTTON_GRIP, HapticPulse, BUTTON_TRIGGER, BatteryStatus, ButtonState, TrackerPose
+from ultimate_linux_support.models import BUTTON_GRIP, DeviceInfo, Event, HapticPulse, Hello, BUTTON_TRIGGER, BatteryStatus, ButtonState, TrackerPose
 from ultimate_linux_support.protocol import (
     battery_from_peripheral_byte,
     decode_battery_line,
@@ -13,6 +13,9 @@ from ultimate_linux_support.protocol import (
     decode_pose_line,
     encode_battery_line,
     encode_buttons_line,
+    encode_device_line,
+    encode_event_line,
+    encode_hello_line,
     encode_pose_line,
     pose_to_json_line,
 )
@@ -93,6 +96,17 @@ class ProtocolTests(unittest.TestCase):
             with self.subTest(line=line):
                 self.assertIsInstance(decode_message(line), (BatteryStatus, ButtonState))
         for line in fixture_lines("status_invalid.txt"):
+            with self.subTest(line=line), self.assertRaises(ValueError):
+                decode_message(line)
+
+    def test_meta_fixtures_and_roundtrip(self) -> None:
+        for line in fixture_lines("meta_valid.txt"):
+            with self.subTest(line=line):
+                message = decode_message(line)
+                self.assertIsInstance(message, (Hello, DeviceInfo, Event))
+                encoder = {Hello: encode_hello_line, DeviceInfo: encode_device_line, Event: encode_event_line}[type(message)]
+                self.assertEqual(encoder(message).decode().strip(), line)
+        for line in fixture_lines("meta_invalid.txt"):
             with self.subTest(line=line), self.assertRaises(ValueError):
                 decode_message(line)
 

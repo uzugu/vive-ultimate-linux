@@ -332,6 +332,30 @@ void IpcPoseClient::Poll(const Handlers &handlers)
                 handlers.on_buttons(buttons);
             }
         }
+        else if (line.compare(0, 6, "HELLO ") == 0)
+        {
+            HelloInfo hello;
+            if (handlers.on_hello && ParseHelloLine(line, hello))
+            {
+                handlers.on_hello(hello);
+            }
+        }
+        else if (line.compare(0, 7, "DEVICE ") == 0)
+        {
+            DeviceInfo device;
+            if (handlers.on_device && ParseDeviceLine(line, device))
+            {
+                handlers.on_device(device);
+            }
+        }
+        else if (line.compare(0, 6, "EVENT ") == 0)
+        {
+            EventInfo event;
+            if (handlers.on_event && ParseEventLine(line, event))
+            {
+                handlers.on_event(event);
+            }
+        }
     }
 }
 
@@ -448,6 +472,74 @@ bool IpcPoseClient::ParseButtonsLine(const std::string &line, ButtonState &out)
     {
         return false;
     }
+    out = parsed;
+    return true;
+}
+
+namespace
+{
+bool ValidKind(const std::string &kind)
+{
+    if (kind.empty() || kind.size() > 32 || !(kind[0] >= 'a' && kind[0] <= 'z'))
+    {
+        return false;
+    }
+    for (const char ch : kind)
+    {
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_'))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+} // namespace
+
+bool IpcPoseClient::ParseHelloLine(const std::string &line, HelloInfo &out)
+{
+    std::istringstream stream(line);
+    std::string tag, extra;
+    int version = 0;
+    HelloInfo parsed;
+    if (!(stream >> tag >> version >> parsed.daemon_version >> parsed.source) || tag != "HELLO" || version != 1 ||
+        (stream >> extra) || parsed.daemon_version.size() > 64 || parsed.source.size() > 64)
+    {
+        return false;
+    }
+    out = parsed;
+    return true;
+}
+
+bool IpcPoseClient::ParseDeviceLine(const std::string &line, DeviceInfo &out)
+{
+    std::istringstream stream(line);
+    std::string tag, extra;
+    int version = 0, connected = 0;
+    DeviceInfo parsed;
+    if (!(stream >> tag >> version >> parsed.serial >> parsed.tracker_index >> connected) || tag != "DEVICE" ||
+        version != 1 || (stream >> extra) || parsed.tracker_index < 0 || (connected != 0 && connected != 1) ||
+        parsed.serial.size() > 64)
+    {
+        return false;
+    }
+    parsed.connected = connected == 1;
+    out = parsed;
+    return true;
+}
+
+bool IpcPoseClient::ParseEventLine(const std::string &line, EventInfo &out)
+{
+    std::istringstream stream(line);
+    std::string tag, extra, serial, detail;
+    int version = 0;
+    EventInfo parsed;
+    if (!(stream >> tag >> version >> parsed.kind >> serial >> detail) || tag != "EVENT" || version != 1 ||
+        (stream >> extra) || !ValidKind(parsed.kind) || serial.size() > 64 || detail.size() > 64)
+    {
+        return false;
+    }
+    parsed.serial = serial == "-" ? "" : serial;
+    parsed.detail = detail == "-" ? "" : detail;
     out = parsed;
     return true;
 }

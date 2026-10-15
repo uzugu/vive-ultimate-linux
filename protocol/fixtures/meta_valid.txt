@@ -1,0 +1,8 @@
+# HELLO, DEVICE and EVENT lines every implementation must accept.
+HELLO 1 0.1.0 mock
+HELLO 1 dev pyvut
+DEVICE 1 AA:BB:CC 0 1
+DEVICE 1 mock-1 1 0
+EVENT 1 source_error - -
+EVENT 1 source_recovered - -
+EVENT 1 tracking_lost AA:BB:CC no_signal
