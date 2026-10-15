@@ -5,7 +5,7 @@ This package is the first runnable component in the stack.
 Responsibilities:
 
 - read poses from either a mock generator or `pyvut`
-- normalize them into the shared `POSE 1 ...` protocol
+- normalize them into the shared `POSE 2 ...` protocol
 - publish them over a Unix domain socket for the SteamVR driver
 
 ## Run with mock data

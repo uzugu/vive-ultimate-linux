@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 
 from .models import TrackerPose
 
@@ -18,6 +19,9 @@ def decode_pose_line(line: str) -> TrackerPose:
         raise ValueError(f"unexpected tag: {tag}")
     if version not in (1, 2):
         raise ValueError(f"unsupported protocol version: {version}")
+    # Version 1 lines have 16 fields, version 2 lines have 18 (see protocol/pose-v1.md).
+    if len(parts) != (16 if version == 1 else 18):
+        raise ValueError(f"version {version} line has {len(parts)} fields")
 
     tracking_code = None
     tracking_label = None
@@ -25,16 +29,23 @@ def decode_pose_line(line: str) -> TrackerPose:
         tracking_code = int(parts[16])
         tracking_label = parts[17]
 
+    floats = [float(v) for v in parts[5:15]]
+    if not all(math.isfinite(v) for v in floats):
+        raise ValueError("non-finite number in pose line")
+    timestamp_ns = int(parts[15])
+    if timestamp_ns < 0:
+        raise ValueError("negative timestamp")
+
     return TrackerPose(
         tracker_index=int(parts[2]),
         serial=parts[3],
         status=parts[4],
         tracking_code=tracking_code,
         tracking_label=tracking_label,
-        position_m=(float(parts[5]), float(parts[6]), float(parts[7])),
-        orientation_xyzw=(float(parts[8]), float(parts[9]), float(parts[10]), float(parts[11])),
-        linear_accel_m_s2=(float(parts[12]), float(parts[13]), float(parts[14])),
-        timestamp_ns=int(parts[15]),
+        position_m=(floats[0], floats[1], floats[2]),
+        orientation_xyzw=(floats[3], floats[4], floats[5], floats[6]),
+        linear_accel_m_s2=(floats[7], floats[8], floats[9]),
+        timestamp_ns=timestamp_ns,
     )
 
 

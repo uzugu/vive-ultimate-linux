@@ -7,6 +7,25 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(DRIVER_NAME ultimate_tracker_linux)
 set(OPENVR_SDK_PATH "" CACHE PATH "Path to the OpenVR SDK checkout")
+option(UTS_BUILD_DRIVER "Build the SteamVR driver (needs the OpenVR SDK)" ON)
+option(UTS_BUILD_TESTS "Build the OpenVR-free unit tests" OFF)
+
+# Pose socket client and parser: no OpenVR dependency, shared by the driver and the tests.
+add_library(uts_ipc STATIC src/ipc_pose_client.cpp)
+target_include_directories(uts_ipc PUBLIC include)
+
+if(UTS_BUILD_TESTS)
+    enable_testing()
+    add_executable(ipc_pose_client_test tests/ipc_pose_client_test.cpp)
+    target_link_libraries(ipc_pose_client_test PRIVATE uts_ipc)
+    target_compile_definitions(ipc_pose_client_test PRIVATE
+        UTS_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../protocol/fixtures")
+    add_test(NAME ipc_pose_client COMMAND ipc_pose_client_test)
+endif()
+
+if(NOT UTS_BUILD_DRIVER)
+    return()
+endif()
 
 if(NOT OPENVR_SDK_PATH)
     message(FATAL_ERROR "OPENVR_SDK_PATH must point at a local OpenVR SDK checkout.")
@@ -35,7 +54,6 @@ endif()
 add_library(driver_${DRIVER_NAME} SHARED
     src/device_provider.cpp
     src/driver_factory.cpp
-    src/ipc_pose_client.cpp
     src/ultimate_tracker_device.cpp
 )
 
@@ -45,6 +63,7 @@ target_include_directories(driver_${DRIVER_NAME} PRIVATE
 )
 
 target_link_libraries(driver_${DRIVER_NAME} PRIVATE
+    uts_ipc
     ${OPENVR_API_LIB}
 )
 

@@ -22,8 +22,11 @@ class IpcPoseClient
 
     void Poll(const std::function<void(const TrackedPose &)> &on_pose);
 
+    // Parses one `POSE 1|2 ...` line (see protocol/pose-v1.md). Returns false on any malformed
+    // or non-finite input, leaving `out_pose` unspecified.
+    static bool ParsePoseLine(const std::string &line, TrackedPose &out_pose);
+
   private:
-    bool ParseLine(const std::string &line, TrackedPose &out_pose) const;
 
     std::string socket_path_;
     int socket_fd_ = -1;

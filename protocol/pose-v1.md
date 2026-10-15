@@ -24,9 +24,7 @@ Recommended socket path:
 
 ## Message format
 
-Each line is:
-
-Version 2 lines are:
+Version 2 lines (what the daemon sends) are:
 
 ```text
 POSE 2 <tracker_index> <serial> <status> <px> <py> <pz> <qx> <qy> <qz> <qw> <ax> <ay> <az> <timestamp_ns> <tracking_code> <tracking_label>
@@ -41,7 +39,7 @@ POSE 1 <tracker_index> <serial> <status> <px> <py> <pz> <qx> <qy> <qz> <qw> <ax>
 Field meanings:
 
 - `POSE`: message type
-- `1`: protocol version
+- `2` (or `1`): protocol version; version 1 lacks the last two fields
 - `tracker_index`: source-side tracker slot as a non-negative integer
 - `serial`: stable tracker identifier
 - `status`: one of `ok`, `searching`, `lost`
@@ -49,8 +47,8 @@ Field meanings:
 - `qx qy qz qw`: orientation quaternion in XYZW order
 - `ax ay az`: linear acceleration in meters per second squared
 - `timestamp_ns`: monotonic timestamp in nanoseconds from the daemon host
-- `tracking_code`: raw `pyvut` tracking status integer when available
-- `tracking_label`: decoded raw tracking label when available
+- `tracking_code`: raw `pyvut` tracking status integer, `-999` when unknown (v2 only)
+- `tracking_label`: decoded tracking label, `unknown` when unavailable (v2 only)
 
 ## Example
 
@@ -68,12 +66,22 @@ Consumers should treat:
 
 The purpose of Milestone 0 is to validate that these assumptions match the real `pyvut` output on hardware.
 
+## Validity rules
+
+Both parsers reject (and drop, without closing the connection) a line that has the wrong field count for
+its version, a non-numeric or non-finite (`nan`, `inf`) number, or a negative timestamp. A peer that sends
+more than 1 MiB without a newline is disconnected. The shared test vectors live in
+[fixtures/valid.txt](fixtures/valid.txt) and [fixtures/invalid.txt](fixtures/invalid.txt) and are checked by
+both the Python and the C++ test suites.
+
 ## Connection behavior
 
 - The daemon acts as the socket server.
 - The SteamVR driver acts as the client.
 - The daemon continuously streams the newest pose lines.
 - If the driver disconnects, the daemon continues serving other clients.
+- A client that stops reading (more than 1 MiB queued) is dropped; other clients are unaffected.
+- With the `pyvut` source, a tracker that has not reported for 0.5 s is published as `lost` / `STALE`.
 - If the daemon disappears, the driver should mark trackers disconnected and retry later.
 
 ## Calibration boundary

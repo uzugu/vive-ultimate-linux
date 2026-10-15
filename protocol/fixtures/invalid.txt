@@ -1,0 +1,10 @@
+# Lines every implementation must reject.
+POSE 3 0 a ok 0 0 0 0 0 0 1 0 0 0 1
+POSE 1 0 a ok 0 0 0 0 0 0 1 0 0 0
+POSE 2 0 a ok 0 0 0 0 0 0 1 0 0 0 1
+POSE 1 0 a ok 0 0 0 0 0 0 1 0 0 0 1 extra
+POSE 1 x a ok 0 0 0 0 0 0 1 0 0 0 1
+POSE 1 0 a ok nan 0 0 0 0 0 1 0 0 0 1
+POSE 1 0 a ok 0 0 0 0 0 0 inf 0 0 0 1
+POSE 1 0 a ok 0 0 0 0 0 0 1 0 0 0 -5
+STATE 1 0 a ok 0 0 0 0 0 0 1 0 0 0 1
