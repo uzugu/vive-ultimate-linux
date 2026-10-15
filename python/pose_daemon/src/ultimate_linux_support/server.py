@@ -9,7 +9,7 @@ from collections.abc import Iterable
 
 from .models import TrackerPose
 from .models import BatteryStatus, ButtonState
-from .protocol import encode_battery_line, encode_buttons_line, encode_pose_line
+from .protocol import decode_haptic_line, encode_battery_line, encode_buttons_line, encode_pose_line
 from .sources import PoseSource
 
 log = logging.getLogger(__name__)
@@ -19,6 +19,9 @@ MAX_CLIENT_BACKLOG_BYTES = 1 << 20
 
 # Battery/button state is sent on change, and repeated this often so late joiners and a restarted driver catch up.
 STATUS_REFRESH_S = 1.0
+
+# Clients (the driver) only send short HAPTIC lines.
+MAX_CLIENT_LINE_BYTES = 4096
 
 
 class PoseServer:
@@ -66,10 +69,18 @@ class PoseServer:
         if self._status_cache:
             writer.write(b"".join(self._status_cache.values()))
         try:
+            buffer = b""
             while True:
-                chunk = await reader.read(256)
+                chunk = await reader.read(4096)
                 if not chunk:
                     break
+                buffer += chunk
+                if len(buffer) > MAX_CLIENT_LINE_BYTES and b"\n" not in buffer:
+                    log.warning("client sent an over-long line; disconnecting")
+                    break
+                *lines, buffer = buffer.split(b"\n")
+                for raw in lines:
+                    await self._handle_client_line(raw)
         except ConnectionError:
             pass
         finally:
@@ -77,6 +88,20 @@ class PoseServer:
             writer.close()
             with contextlib.suppress(Exception):
                 await writer.wait_closed()
+
+    async def _handle_client_line(self, raw: bytes) -> None:
+        line = raw.decode("utf-8", errors="replace").strip()
+        if not line.startswith("HAPTIC "):
+            return  # unknown client messages are ignored, like unknown daemon messages on the driver side
+        try:
+            pulse = decode_haptic_line(line)
+        except ValueError as exc:
+            log.warning("ignoring bad client line %r: %s", line[:80], exc)
+            return
+        try:
+            await self._source.haptic(pulse)
+        except Exception:
+            log.exception("haptic request failed")
 
     async def _broadcast_loop(self) -> None:
         interval = 1.0 / self._hz

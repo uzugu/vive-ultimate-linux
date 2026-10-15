@@ -27,6 +27,8 @@ class UltimateTrackerDevice final : public vr::ITrackedDeviceServerDriver
     void MarkDisconnected();
     void UpdateBattery(const BatteryStatus &battery);
     void UpdateButtons(const ButtonState &buttons);
+    // True when a SteamVR haptic event addresses this tracker's haptic component.
+    bool OwnsHaptic(std::uint64_t container_handle, std::uint64_t component_handle) const;
     static bool IsPoseUsable(const TrackedPose &pose);
 
   private:
@@ -41,6 +43,7 @@ class UltimateTrackerDevice final : public vr::ITrackedDeviceServerDriver
 
     static constexpr int kButtonCount = 5;
     vr::VRInputComponentHandle_t button_handles_[kButtonCount] = {};
+    vr::VRInputComponentHandle_t haptic_handle_ = vr::k_ulInvalidInputComponentHandle;
     BatteryStatus battery_;
     bool have_battery_ = false;
     int button_mask_ = 0;

@@ -2,10 +2,12 @@ import json
 import unittest
 from pathlib import Path
 
-from ultimate_linux_support.models import BUTTON_GRIP, BUTTON_TRIGGER, BatteryStatus, ButtonState, TrackerPose
+from ultimate_linux_support.models import BUTTON_GRIP, HapticPulse, BUTTON_TRIGGER, BatteryStatus, ButtonState, TrackerPose
 from ultimate_linux_support.protocol import (
     battery_from_peripheral_byte,
     decode_battery_line,
+    decode_haptic_line,
+    encode_haptic_line,
     decode_buttons_line,
     decode_message,
     decode_pose_line,
@@ -93,6 +95,16 @@ class ProtocolTests(unittest.TestCase):
         for line in fixture_lines("status_invalid.txt"):
             with self.subTest(line=line), self.assertRaises(ValueError):
                 decode_message(line)
+
+    def test_haptic_fixtures_and_roundtrip(self) -> None:
+        for line in fixture_lines("haptic_valid.txt"):
+            with self.subTest(line=line):
+                decode_haptic_line(line)
+        for line in fixture_lines("haptic_invalid.txt"):
+            with self.subTest(line=line), self.assertRaises(ValueError):
+                decode_haptic_line(line)
+        pulse = HapticPulse("AA:BB", 0.25, 160.0, 0.75)
+        self.assertEqual(decode_haptic_line(encode_haptic_line(pulse).decode()), pulse)
 
     def test_peripheral_byte(self) -> None:
         self.assertEqual(battery_from_peripheral_byte(43), (86, False))

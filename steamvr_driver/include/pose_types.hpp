@@ -58,4 +58,12 @@ struct ButtonState
     int mask = 0;
 };
 
+struct HapticPulse
+{
+    std::string serial;
+    double duration_s = 0.0;
+    double frequency_hz = 0.0;
+    double amplitude = 0.0;
+};
+
 } // namespace uts

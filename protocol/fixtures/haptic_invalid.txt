@@ -1,0 +1,10 @@
+# HAPTIC lines every implementation must reject.
+HAPTIC 1 a -0.1 160 1
+HAPTIC 1 a 10.5 160 1
+HAPTIC 1 a 0.1 1001 1
+HAPTIC 1 a 0.1 160 1.5
+HAPTIC 1 a 0.1 160 -1
+HAPTIC 1 a 0.1 nan 1
+HAPTIC 1 a 0.1 160
+HAPTIC 2 a 0.1 160 1
+HAPTIC 1 a 0.1 160 1 extra

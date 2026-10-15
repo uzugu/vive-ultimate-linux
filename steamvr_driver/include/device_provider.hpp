@@ -30,6 +30,7 @@ class DeviceProvider final : public vr::IServerTrackedDeviceProvider
     UltimateTrackerDevice *EnsureDeviceForSerial(const std::string &serial);
     void ReloadSettings();
     void MarkAllDisconnected();
+    void ForwardHapticEvents();
 
     std::string socket_path_;
     bool reload_settings_once_ = true;

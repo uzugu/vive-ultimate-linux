@@ -41,3 +41,13 @@ class BatteryStatus:
 class ButtonState:
     serial: str
     mask: int
+
+
+@dataclass(slots=True)
+class HapticPulse:
+    """Driver to daemon: vibrate one tracker (SteamVR's haptic event, unchanged)."""
+
+    serial: str
+    duration_s: float
+    frequency_hz: float
+    amplitude: float

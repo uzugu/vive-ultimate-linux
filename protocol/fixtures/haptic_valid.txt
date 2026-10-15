@@ -1,0 +1,4 @@
+# HAPTIC lines (driver to daemon) every implementation must accept.
+HAPTIC 1 AA:BB:CC 0.1 160 1
+HAPTIC 1 t 0 0 0
+HAPTIC 1 t 10 1000 0.5

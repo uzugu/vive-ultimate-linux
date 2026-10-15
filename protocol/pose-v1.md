@@ -72,6 +72,20 @@ Where the values come from: HTC's tracker reports battery in the second peripher
 `battery_from_peripheral_byte`. The mock source produces both message types; the `pyvut` source does not yet,
 because where pyvut exposes those bytes is unverified.
 
+## Haptics (driver to daemon)
+
+The only client-to-daemon message. SteamVR's haptic event for a tracker's `/output/haptic` component is forwarded as
+
+```text
+HAPTIC 1 <serial> <duration_s 0-10> <frequency_hz 0-1000> <amplitude 0-1>
+```
+
+The daemon ignores lines it cannot parse or that are out of range, and disconnects a client that sends 4 KiB without a
+newline. The daemon passes valid pulses to the active source's `haptic()`. The mock source records them; the `pyvut`
+source returns false (no known haptic command yet; HTC's server has an identify command, 0x18 in
+`docs/re/driver-pipes.md`, that is the likely way to buzz a real tracker). Vectors:
+[fixtures/haptic_valid.txt](fixtures/haptic_valid.txt), [fixtures/haptic_invalid.txt](fixtures/haptic_invalid.txt).
+
 ## Example
 
 ```text
@@ -98,7 +112,7 @@ both the Python and the C++ test suites.
 
 ## Connection behavior
 
-- The daemon acts as the socket server.
+- The daemon acts as the socket server. Clients only ever send `HAPTIC` lines.
 - The SteamVR driver acts as the client.
 - The daemon continuously streams the newest pose lines.
 - If the driver disconnects, the daemon continues serving other clients.

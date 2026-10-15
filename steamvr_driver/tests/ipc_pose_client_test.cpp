@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <string>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -225,6 +226,29 @@ void TestStatusOverSocket()
     ::close(conn);
 }
 
+void TestHaptic()
+{
+    std::string line;
+    CHECK(uts::IpcPoseClient::FormatHapticLine({"AA:BB", 0.1, 160.0, 1.0}, line));
+    CHECK(line == "HAPTIC 1 AA:BB 0.1000 160.00 1.0000\n");
+    CHECK(uts::IpcPoseClient::FormatHapticLine({"t", 99.0, 5000.0, 3.0}, line));
+    CHECK(line == "HAPTIC 1 t 10.0000 1000.00 1.0000\n"); // clamped
+    CHECK(!uts::IpcPoseClient::FormatHapticLine({"bad serial", 0.1, 1.0, 1.0}, line));
+    CHECK(!uts::IpcPoseClient::FormatHapticLine({"", 0.1, 1.0, 1.0}, line));
+    CHECK(!uts::IpcPoseClient::FormatHapticLine({"t", std::nan(""), 1.0, 1.0}, line));
+
+    FakeDaemon daemon;
+    uts::IpcPoseClient client(daemon.path);
+    CHECK(!client.SendHaptic({"t", 0.1, 1.0, 1.0})); // not connected yet
+    CHECK(client.Connect());
+    const int conn = ::accept(daemon.listen_fd, nullptr, nullptr);
+    CHECK(client.SendHaptic({"t0", 0.5, 100.0, 0.5}));
+    char buffer[128] = {};
+    const ssize_t n = ::read(conn, buffer, sizeof(buffer) - 1);
+    CHECK(n > 0 && std::string(buffer, static_cast<std::size_t>(n)) == "HAPTIC 1 t0 0.5000 100.00 0.5000\n");
+    ::close(conn);
+}
+
 void TestMissingDaemon()
 {
     uts::IpcPoseClient client("/tmp/uts-does-not-exist.sock");
@@ -296,6 +320,7 @@ int main()
     TestStatusFixtures();
     TestStatusOverSocket();
     TestSocketStreaming();
+    TestHaptic();
     TestMissingDaemon();
     TestNewlineFlood();
     if (const char *socket_path = std::getenv("UTS_E2E_SOCKET"))

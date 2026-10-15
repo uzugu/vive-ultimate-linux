@@ -34,6 +34,11 @@ class IpcPoseClient
     // or non-finite input, leaving `out_pose` unspecified.
     static bool ParsePoseLine(const std::string &line, TrackedPose &out_pose);
     // `BATTERY 1 <serial> <percent 0-100> <charging 0|1>` and `BUTTONS 1 <serial> <mask 0-31>`.
+    // `HAPTIC 1 <serial> <duration_s> <frequency_hz> <amplitude>` (driver to daemon). Values are clamped to the
+    // protocol ranges; returns false for non-finite numbers or a serial containing whitespace.
+    static bool FormatHapticLine(const HapticPulse &pulse, std::string &out_line);
+    // Best effort: returns false when not connected or the socket cannot take the line right now.
+    bool SendHaptic(const HapticPulse &pulse);
     static bool ParseBatteryLine(const std::string &line, BatteryStatus &out);
     static bool ParseButtonsLine(const std::string &line, ButtonState &out);
 
