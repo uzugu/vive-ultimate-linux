@@ -3,6 +3,8 @@
 #include "driver_log.hpp"
 
 #include <cerrno>
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <sstream>
 #include <string>
@@ -12,6 +14,11 @@
 
 namespace uts
 {
+
+namespace
+{
+constexpr std::size_t kMaxBufferedBytes = 1 << 20;
+} // namespace
 
 IpcPoseClient::IpcPoseClient(std::string socket_path) : socket_path_(std::move(socket_path)) {}
 
@@ -94,6 +101,12 @@ void IpcPoseClient::Poll(const std::function<void(const TrackedPose &)> &on_pose
         if (nread > 0)
         {
             read_buffer_.append(buffer, static_cast<std::size_t>(nread));
+            if (read_buffer_.size() > kMaxBufferedBytes && read_buffer_.find('\n') == std::string::npos)
+            {
+                Logf("pose socket sent %zu bytes without a newline, dropping connection", read_buffer_.size());
+                Disconnect();
+                return;
+            }
             continue;
         }
 
@@ -121,18 +134,19 @@ void IpcPoseClient::Poll(const std::function<void(const TrackedPose &)> &on_pose
         read_buffer_.erase(0, line_end + 1);
 
         TrackedPose pose;
-        if (ParseLine(line, pose))
+        if (ParsePoseLine(line, pose))
         {
             on_pose(pose);
         }
     }
 }
 
-bool IpcPoseClient::ParseLine(const std::string &line, TrackedPose &out_pose) const
+bool IpcPoseClient::ParsePoseLine(const std::string &line, TrackedPose &out_pose)
 {
     std::istringstream stream(line);
     std::string tag;
     int version = 0;
+    long long timestamp_ns = 0;
 
     if (!(stream >> tag >> version))
     {
@@ -148,14 +162,35 @@ bool IpcPoseClient::ParseLine(const std::string &line, TrackedPose &out_pose) co
           out_pose.position_m.x >> out_pose.position_m.y >> out_pose.position_m.z >>
           out_pose.orientation_xyzw.x >> out_pose.orientation_xyzw.y >> out_pose.orientation_xyzw.z >>
           out_pose.orientation_xyzw.w >> out_pose.linear_accel_m_s2.x >> out_pose.linear_accel_m_s2.y >>
-          out_pose.linear_accel_m_s2.z >> out_pose.timestamp_ns))
+          out_pose.linear_accel_m_s2.z >> timestamp_ns) ||
+        timestamp_ns < 0)
     {
         return false;
     }
+    out_pose.timestamp_ns = static_cast<std::uint64_t>(timestamp_ns);
 
     if (version == 2)
     {
         if (!(stream >> out_pose.tracking_code >> out_pose.tracking_label))
+        {
+            return false;
+        }
+    }
+
+    // Trailing garbage means the line does not follow the protocol.
+    std::string extra;
+    if (stream >> extra)
+    {
+        return false;
+    }
+
+    const double values[] = {out_pose.position_m.x,         out_pose.position_m.y,         out_pose.position_m.z,
+                             out_pose.orientation_xyzw.x,   out_pose.orientation_xyzw.y,   out_pose.orientation_xyzw.z,
+                             out_pose.orientation_xyzw.w,   out_pose.linear_accel_m_s2.x,  out_pose.linear_accel_m_s2.y,
+                             out_pose.linear_accel_m_s2.z};
+    for (const double value : values)
+    {
+        if (!std::isfinite(value))
         {
             return false;
         }

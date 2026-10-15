@@ -68,8 +68,15 @@ class MockPoseSource(PoseSource):
 
 
 class PyVutPoseSource(PoseSource):
-    def __init__(self, mode: str = "DONGLE_USB", wifi_info_path: str | None = None) -> None:
+    def __init__(
+        self,
+        mode: str = "DONGLE_USB",
+        wifi_info_path: str | None = None,
+        stale_after_s: float = 0.5,
+    ) -> None:
         self._mode = mode
+        # Trackers that stop reporting are published as `lost` so SteamVR does not hold a frozen pose.
+        self._stale_after_ns = int(stale_after_s * 1e9)
         self._wifi_info_path = wifi_info_path
         self._api = None
         self._lock = threading.Lock()
@@ -98,8 +105,13 @@ class PyVutPoseSource(PoseSource):
             self._api = None
 
     async def sample(self) -> list[TrackerPose]:
+        now_ns = time.monotonic_ns()
         with self._lock:
-            return list(self._latest.values())
+            latest = list(self._latest.values())
+        return [
+            replace(p, status="lost", tracking_label="STALE") if now_ns - p.timestamp_ns > self._stale_after_ns else p
+            for p in latest
+        ]
 
     def _on_pose(self, pose: object) -> None:
         tracker_index = int(getattr(pose, "tracker_index", 0))

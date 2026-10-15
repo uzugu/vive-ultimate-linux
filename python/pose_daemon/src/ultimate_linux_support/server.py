@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import os
 from collections.abc import Iterable
 
 from .models import TrackerPose
 from .protocol import encode_pose_line
 from .sources import PoseSource
+
+log = logging.getLogger(__name__)
+
+# A client that lets this much data pile up unread is dropped instead of stalling the others.
+MAX_CLIENT_BACKLOG_BYTES = 1 << 20
 
 
 class PoseServer:
@@ -55,6 +61,8 @@ class PoseServer:
                 chunk = await reader.read(256)
                 if not chunk:
                     break
+        except ConnectionError:
+            pass
         finally:
             self._clients.discard(writer)
             writer.close()
@@ -64,27 +72,28 @@ class PoseServer:
     async def _broadcast_loop(self) -> None:
         interval = 1.0 / self._hz
         while True:
-            poses = await self._source.sample()
-            await self._broadcast(poses)
+            try:
+                poses = await self._source.sample()
+                self._broadcast(poses)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("pose source failed; retrying")
             await asyncio.sleep(interval)
 
-    async def _broadcast(self, poses: Iterable[TrackerPose]) -> None:
+    def _broadcast(self, poses: Iterable[TrackerPose]) -> None:
         if not self._clients:
             return
 
         payload = b"".join(encode_pose_line(pose) for pose in poses)
-        stale_clients: list[asyncio.StreamWriter] = []
+        if not payload:
+            return
 
-        for writer in self._clients:
+        for writer in list(self._clients):
             try:
+                if writer.transport.get_write_buffer_size() > MAX_CLIENT_BACKLOG_BYTES:
+                    raise ConnectionError("client is not reading")
                 writer.write(payload)
-                await writer.drain()
             except Exception:
-                stale_clients.append(writer)
-
-        for writer in stale_clients:
-            self._clients.discard(writer)
-            writer.close()
-            with contextlib.suppress(Exception):
-                await writer.wait_closed()
-
+                self._clients.discard(writer)
+                writer.close()

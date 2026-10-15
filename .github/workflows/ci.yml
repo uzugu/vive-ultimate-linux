@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install daemon
+        run: pip install -e python/pose_daemon
+      - name: Unit tests
+        run: python -m unittest discover -s python/pose_daemon/tests -v
+
+  driver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install daemon
+        run: pip install -e python/pose_daemon
+      - name: Build and run OpenVR-free tests
+        run: |
+          cmake -S steamvr_driver -B build/tests -DUTS_BUILD_DRIVER=OFF -DUTS_BUILD_TESTS=ON
+          cmake --build build/tests
+          ctest --test-dir build/tests --output-on-failure
+      - name: Cross-language check (Python daemon -> C++ client)
+        run: |
+          ultimate-linux-support-daemon --source mock --socket-path /tmp/uts-ci.sock &
+          daemon=$!
+          for i in $(seq 50); do [ -S /tmp/uts-ci.sock ] && break; sleep 0.1; done
+          UTS_E2E_SOCKET=/tmp/uts-ci.sock build/tests/ipc_pose_client_test
+          kill $daemon
+      - name: Build the SteamVR driver against the OpenVR SDK
+        run: |
+          git clone --depth 1 --branch v2.15.6 https://github.com/ValveSoftware/openvr "$RUNNER_TEMP/openvr"
+          cmake -S steamvr_driver -B build/driver -DOPENVR_SDK_PATH="$RUNNER_TEMP/openvr"
+          cmake --build build/driver
+          test -f build/driver/stage/ultimate_tracker_linux/bin/linux64/driver_ultimate_tracker_linux.so

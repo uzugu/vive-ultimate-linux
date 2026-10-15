@@ -75,6 +75,17 @@ cmake --build steamvr_driver/build
 
 The staged runtime layout is emitted under `steamvr_driver/build/stage/ultimate_tracker_linux`.
 
+## Tests
+
+```bash
+python -m unittest discover -s python/pose_daemon/tests            # needs PYTHONPATH=python/pose_daemon/src or pip install -e
+cmake -S steamvr_driver -B build/tests -DUTS_BUILD_DRIVER=OFF -DUTS_BUILD_TESTS=ON
+cmake --build build/tests && ctest --test-dir build/tests --output-on-failure
+```
+
+CI (`.github/workflows/ci.yml`) runs both, checks the Python daemon against the C++ client, and builds the driver
+against OpenVR v2.15.6.
+
 ## Notes
 
 - VRChat on Linux is still unofficial. The goal here is SteamVR compatibility first.
