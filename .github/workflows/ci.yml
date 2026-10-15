@@ -20,6 +20,11 @@ jobs:
         run: pip install -e python/pose_daemon
       - name: Unit tests
         run: python -m unittest discover -s python/pose_daemon/tests -v
+      - name: Tool and research-helper tests
+        run: |
+          pip install pytest
+          PYTHONPATH=python/vut_settings:python/htc_pipe_codec/src \
+            python -m pytest -q tests python/vut_settings/tests python/htc_pipe_codec/tests
 
   driver:
     runs-on: ubuntu-latest
