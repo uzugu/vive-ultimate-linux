@@ -223,9 +223,10 @@ class RoomStore:
         """Make a room active and, if given, rewrite the driver's calibration file so SteamVR switches live."""
         room = self.get(name_or_slug)
         self.root.mkdir(parents=True, exist_ok=True)
-        _atomic_write(self.root / "active", room.slug + "\n")
         if calibration_file is not None:
             target = Path(calibration_file)
             target.parent.mkdir(parents=True, exist_ok=True)
             _atomic_write(target, format_calibration_line(room.calibration) + "\n")
+        # A refused driver-file write must not mark a room as successfully active.
+        _atomic_write(self.root / "active", room.slug + "\n")
         return room

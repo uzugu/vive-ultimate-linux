@@ -35,4 +35,18 @@ CI builds it for Linux x86-64, Linux ARM64 and Windows x86-64 and uploads each a
 - **Rooms**: the room store (`docs/roomstore.md`); "Use selected room" rewrites the driver's calibration file.
 - **Pair**: read-only placeholder. Pairing needs dongle commands that have not been verified on hardware (HANDOFF T2/T3).
 
-The logic is in `vut_app/gui_model.py` (headless, unit-tested with a real daemon over TCP); `gui.py` is only the Tk layout. CI runs a window smoke test under a virtual display. Nothing here has been looked at by a person yet, so expect layout rough edges.
+The logic is in `vut_app/gui_model.py` (headless, unit-tested with a real daemon over TCP); `gui.py` is only the Tk layout. CI runs a window smoke test under a virtual display. Windows widget checks now exercise status rendering and calibration selection. Real tracker interaction remains unverified; see `docs/windows-app-testing.md`.
+
+
+## Local mock demo and executable check
+
+With the source packages installed, `python tools/run_mock_demo.py` opens the GUI
+with two mock trackers and disposable example rooms. It uses a separate loopback
+port and temporary calibration file. Closing the window stops that daemon and
+removes its temporary data; HTC's service and real tracker settings are untouched.
+
+`python tools/smoke_app.py --app dist/vut.exe` checks the frozen client against a
+source mock daemon, including doctor, room creation/selection and pose output.
+An optional `--cpp-client <test-executable>` also checks the C++ client. The script
+uses the current environment's Python for the daemon; it does not claim to test
+a frozen daemon or a real SteamVR session.

@@ -72,8 +72,10 @@ jobs:
           python-version: "3.12"
       - name: Install daemon
         run: pip install -e python/pose_daemon
-      - name: Python unit tests (loopback TCP transport)
-        run: python -m unittest discover -s python/pose_daemon/tests -v
+      - name: Install app and protocol test packages
+        run: pip install pytest -e python/vut_app -e python/vut_roomstore -e python/vut_dongle -e python/vut_settings -e python/htc_pipe_codec
+      - name: Python app and protocol tests (loopback TCP transport)
+        run: python -m pytest -q tests python/pose_daemon/tests python/vut_app/tests python/vut_roomstore/tests python/vut_dongle/tests python/vut_settings/tests python/htc_pipe_codec/tests
       - name: Build and run OpenVR-free tests
         run: |
           cmake -S steamvr_driver -B build/tests -DUTS_BUILD_DRIVER=OFF -DUTS_BUILD_TESTS=ON
@@ -122,6 +124,7 @@ jobs:
           "$exe" --help
           "$exe" room --root "$RUNNER_TEMP/rooms" list
           "$exe" daemon --help
+          python tools/smoke_app.py --app "$exe"
       - uses: actions/upload-artifact@v4
         with:
           name: vut-${{ matrix.name }}

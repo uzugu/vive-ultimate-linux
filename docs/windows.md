@@ -1,6 +1,6 @@
 # Windows build
 
-The pose daemon and the SteamVR driver also build on Windows. Nothing here has run on real Windows hardware yet; CI (the `windows` job) builds the driver and runs the unit tests and a Python-daemon to C++-client round trip over TCP.
+The pose daemon and the SteamVR driver also build on Windows. Local Windows 11 checks now build the driver and exercise the app with mock trackers; see [windows-app-testing.md](windows-app-testing.md). Real tracker streaming and loading this driver inside SteamVR remain unverified. CI also builds and tests the Windows transport.
 
 ## Transport
 

@@ -12,7 +12,7 @@ before the map-import work.
 ```text
 active                 slug of the active room
 <slug>/room.json       name, created, calibration {translation_m, rotation_xyzw}, host_serial, map times, notes
-<slug>/maps/*.db       optional private copies of exported tracker maps (mode 0700)
+<slug>/maps/*.db       optional local copies of exported tracker maps (directory mode 0700 on POSIX)
 ```
 
 `room.json` is versioned (`"version": 1`); a different version is refused instead of guessed at.
@@ -30,8 +30,10 @@ vut-room attach-maps "Living room" general.db map_1.db kf_1.db
 ## Privacy
 
 Tracker maps hold camera images of the owner's room. `attach-maps` copies them only into the owner's store, sets the
-directory to 0700, and **refuses to run if the store sits inside a git work tree**. No map file belongs in this
-repository or in any PR.
+directory to 0700 on POSIX, and **refuses to run if the store sits inside a git work tree**. No map file belongs in this
+repository or in any PR. On Windows, `chmod` does not restrict NTFS access:
+the store inherits its parent directory ACL. Keep it under the private user
+profile; the app does not enforce a separate Windows ACL.
 
 ## Assumptions to check
 

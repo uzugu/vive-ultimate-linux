@@ -90,16 +90,15 @@ A client receives a map as **four files, in this order**, each pulled by file in
 
 - The three databases are **the same files we exported** (`general.db`, `map_95.db`, `kf_95.db`), renamed with the `<N>_8_` prefix. The sizes in the pack are smaller than the later export because the tracker kept adding keyframes before it saved.
 - **Trigger and state machine** (control link): the client gets `P64:3` (command 3, `RESET_MAP`), answers `P61:1,0:3,0:6,3:0,0` (first file 0, host map 0, map state 3, transmission ready 0) and then `P61:0,1` (ready). Before the pack the identity exchange from 3a.1 has run. After the four files the client reports `P61:3,1` (received host map) and `P61:5,1` (map state 1, "exists"), about a minute after the pack-info exchange.
-- The `file_pack_info` JSON is the **only unknown**: 502 bytes, which must list the three databases (names, sizes, probably checksums), and may carry a signature checked against the sender's public key. Its content is not in any log.
+- The `file_pack_info` JSON is 502 bytes in the observed map transfers. Its keys and contents are unknown. Listing the three databases, their sizes or checksums, and carrying a signature are hypotheses, not recovered fields. PC-peer acceptance and map activation also remain untested. See [file-pack-info.md](file-pack-info.md) for the local evidence audit.
 - Older packs on the tracker are deleted (`FilePackManager::RemoveFile`) once loaded.
 
-So the import recipe is now concrete except for the pack-info schema: be a host, announce the files, serve the four files with message 22/23 on 8053 under `/data/lambda/<n>/general_map/`, and let the tracker's own loader take them. What is missing is how to get a valid `file_pack_info` and whether it must be signed.
+This suggests a candidate import flow: behave as a host, announce and serve the four files using messages 22/23 on 8053. This is not a working import recipe: the metadata schema, authentication requirements, PC-peer acceptance, and activation behavior remain unverified.
 
 ## 3b. Two obstacles found in the tracker logs (not in the PC binaries)
 
-- **Signed packs.** On every boot a client logs `/data/lambda/8/ed/file_pack_info_<n>_0.json` and stores the sending tracker's `/data/.ssl/pubkey.pem` as `<n>_0_pubkey.pem`
-  (see `vivehub-windows-live-tracker-bundle.md` section 6). Tracker-to-tracker packs therefore appear to carry or be checked against a public key. A PC that forges such a pack
-  may be rejected. HTC's VBP `autosave0` path has no key in the package the server unzips (only `autosave0` and `boundary`), so it may be accepted on a different path, but that is unverified.
+- **Public-key exchange; signatures unconfirmed.** On every boot a client logs `/data/lambda/8/ed/file_pack_info_<n>_0.json` and stores the sending tracker's `/data/.ssl/pubkey.pem` as `<n>_0_pubkey.pem`
+  (see `vivehub-windows-live-tracker-bundle.md` section 6). This establishes key exchange, but not a signature field or pack-signature verification. A PC-generated pack may still be rejected for unknown format or authentication requirements. HTC's VBP `autosave0` path has no key in the package the server unzips (only `autosave0` and `boundary`), so it may be accepted on a different path, but that is unverified.
 - **We must be the server.** A tracker only talks to a TCP server on the PC (it was told the PC's IP and Wi-Fi). To send it a file we have to run that server ourselves, with HTC's
   `ViveTrackerServer.exe` stopped, and the tracker has to join our listener. The ports are still not matched to roles (see the ports note), so the first job is a listener that accepts the tracker's connection and logs what it sends.
 
