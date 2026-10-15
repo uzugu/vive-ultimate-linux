@@ -51,7 +51,7 @@ Until then `MapBuildSession` is given a `Link`; the default link refuses to send
 * `MapBuildSession`: IDLE -> STARTING -> SCANNING -> REVIEW -> SAVING -> SYNCING -> DONE (CANCELLED / FAILED), driven by records, with timeouts
   (host must start scanning within 20 s, confirm the save within 60 s, clients must follow within 120 s).
 * `parse_log_line`: turns HTC server log lines into the same records our app will build from dongle indications.
-* **Replay test**: `python/vut_mapbuild/tests/fixtures/server-map-build-20261014.log` (50 lines, no serials) is the real build above; the test
+* **Replay test**: `python/vut_mapbuild/tests/fixtures/server-map-build-20261014.txt` (50 lines, no serials) is the real build above; the test
   asserts the model reproduces its timeline (review at ~97 s, save confirmed ~5.7 s after End, clients ~19 s later).
   `vut map replay <ViveTrackerServer log>` does the same for any log, which is how the PC agent can validate the model on a second build
   without touching a tracker.

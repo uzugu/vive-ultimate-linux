@@ -9,7 +9,7 @@ from vut_app import map_cli
 from vut_app.map_model import STEPS, MapModel
 from vut_mapbuild import RecordingLink, TrackerNotice, TrackerRecord
 
-FIXTURE = Path(__file__).parents[2] / "vut_mapbuild" / "tests" / "fixtures" / "server-map-build-20261014.log"
+FIXTURE = Path(__file__).parents[2] / "vut_mapbuild" / "tests" / "fixtures" / "server-map-build-20261014.txt"
 
 
 def rec(t, slot, *, host=False, trk=2, has=True):

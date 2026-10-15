@@ -21,7 +21,7 @@ from vut_mapbuild import (
 from vut_mapbuild.commands import check_command
 from vut_mapbuild.replay import replay
 
-FIXTURE = Path(__file__).parent / "fixtures" / "server-map-build-20261014.log"
+FIXTURE = Path(__file__).parent / "fixtures" / "server-map-build-20261014.txt"
 
 
 def rec(t, slot, *, host=False, trk=2, has=True, mst=6, connected=True):
