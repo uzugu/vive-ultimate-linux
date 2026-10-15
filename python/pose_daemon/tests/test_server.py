@@ -5,7 +5,8 @@ import unittest
 from dataclasses import replace
 
 from ultimate_linux_support.models import TrackerPose
-from ultimate_linux_support.protocol import decode_pose_line
+from ultimate_linux_support.models import BatteryStatus, ButtonState
+from ultimate_linux_support.protocol import decode_message, decode_pose_line
 from ultimate_linux_support.server import PoseServer
 from ultimate_linux_support.sources import MockPoseSource, PoseSource, PyVutPoseSource
 
@@ -39,9 +40,10 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         reader, writer = await asyncio.open_unix_connection(self.path)
         try:
             poses = []
-            for _ in range(count):
+            while len(poses) < count:
                 line = await asyncio.wait_for(reader.readline(), timeout=5)
-                poses.append(decode_pose_line(line.decode()))
+                if line.startswith(b"POSE "):  # status lines are interleaved
+                    poses.append(decode_pose_line(line.decode()))
             return poses
         finally:
             writer.close()
@@ -77,6 +79,26 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await server.stop()
         self.assertEqual(len(poses), 2)
+
+
+    async def test_status_messages_reach_late_clients(self) -> None:
+        server = PoseServer(self.path, MockPoseSource(tracker_count=1), hz=200)
+        await server.start()
+        try:
+            await asyncio.sleep(0.05)  # let the first status broadcast populate the cache
+            reader, writer = await asyncio.open_unix_connection(self.path)
+            kinds = set()
+            for _ in range(20):
+                line = await asyncio.wait_for(reader.readline(), timeout=5)
+                kinds.add(type(decode_message(line.decode())))
+                if {BatteryStatus, ButtonState} <= kinds:
+                    break
+            writer.close()
+            await writer.wait_closed()
+        finally:
+            await server.stop()
+        self.assertIn(BatteryStatus, kinds)
+        self.assertIn(ButtonState, kinds)
 
 
 class FakeRawPose:

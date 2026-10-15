@@ -6,7 +6,7 @@ import threading
 import time
 from dataclasses import replace
 
-from .models import TrackerPose
+from .models import BUTTON_TRIGGER, BatteryStatus, ButtonState, TrackerPose
 
 
 class PoseSource(abc.ABC):
@@ -21,6 +21,10 @@ class PoseSource(abc.ABC):
     @abc.abstractmethod
     async def sample(self) -> list[TrackerPose]:
         """Return the latest available poses."""
+
+    async def sample_status(self) -> list[BatteryStatus | ButtonState]:
+        """Latest battery and button state per tracker; sources without any return nothing."""
+        return []
 
 
 class MockPoseSource(PoseSource):
@@ -65,6 +69,18 @@ class MockPoseSource(PoseSource):
             )
 
         return poses
+
+
+    async def sample_status(self) -> list[BatteryStatus | ButtonState]:
+        t = time.monotonic() - self._start
+        out: list[BatteryStatus | ButtonState] = []
+        for tracker_index in range(self._tracker_count):
+            serial = f"mock-{tracker_index}"
+            out.append(BatteryStatus(serial, percent=max(0, 80 - int(t // 60)), charging=tracker_index == 1))
+            # Trigger "pressed" for one second out of every four, so the input path can be exercised.
+            pressed = tracker_index == 0 and int(t) % 4 == 0
+            out.append(ButtonState(serial, BUTTON_TRIGGER if pressed else 0))
+        return out
 
 
 class PyVutPoseSource(PoseSource):

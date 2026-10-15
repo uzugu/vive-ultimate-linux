@@ -25,6 +25,8 @@ class UltimateTrackerDevice final : public vr::ITrackedDeviceServerDriver
     const std::string &serial() const;
     void UpdateFromPose(const TrackedPose &pose);
     void MarkDisconnected();
+    void UpdateBattery(const BatteryStatus &battery);
+    void UpdateButtons(const ButtonState &buttons);
     static bool IsPoseUsable(const TrackedPose &pose);
 
   private:
@@ -34,6 +36,14 @@ class UltimateTrackerDevice final : public vr::ITrackedDeviceServerDriver
     std::string serial_;
     std::uint32_t object_id_ = vr::k_unTrackedDeviceIndexInvalid;
     vr::PropertyContainerHandle_t property_container_ = vr::k_ulInvalidPropertyContainer;
+    void PublishBattery();
+    void PublishButtons();
+
+    static constexpr int kButtonCount = 5;
+    vr::VRInputComponentHandle_t button_handles_[kButtonCount] = {};
+    BatteryStatus battery_;
+    bool have_battery_ = false;
+    int button_mask_ = 0;
     mutable std::mutex pose_mutex_;
     vr::DriverPose_t current_pose_ = MakeDefaultPose();
 };

@@ -19,3 +19,25 @@ class TrackerPose:
 @dataclass(slots=True)
 class PoseBatch:
     poses: list[TrackerPose]
+
+
+# Button bits in ButtonState.mask (HTC order: system button, grip, trigger, trackpad, menu).
+BUTTON_POWER = 1
+BUTTON_GRIP = 2
+BUTTON_TRIGGER = 4
+BUTTON_TRACKPAD = 8
+BUTTON_MENU = 16
+BUTTON_ALL = 31
+
+
+@dataclass(slots=True)
+class BatteryStatus:
+    serial: str
+    percent: int
+    charging: bool
+
+
+@dataclass(slots=True)
+class ButtonState:
+    serial: str
+    mask: int

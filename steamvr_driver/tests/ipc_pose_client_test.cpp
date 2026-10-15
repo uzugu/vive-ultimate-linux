@@ -72,6 +72,41 @@ void TestFixtures()
     }
 }
 
+void TestStatusFixtures()
+{
+    for (const auto &line : ReadFixture("status_valid.txt"))
+    {
+        uts::BatteryStatus battery;
+        uts::ButtonState buttons;
+        const bool ok = line.rfind("BATTERY", 0) == 0 ? uts::IpcPoseClient::ParseBatteryLine(line, battery)
+                                                       : uts::IpcPoseClient::ParseButtonsLine(line, buttons);
+        if (!ok)
+        {
+            std::fprintf(stderr, "should parse: %s\n", line.c_str());
+            ++g_failures;
+        }
+    }
+    for (const auto &line : ReadFixture("status_invalid.txt"))
+    {
+        uts::BatteryStatus battery;
+        uts::ButtonState buttons;
+        const bool ok = line.rfind("BATTERY", 0) == 0 ? uts::IpcPoseClient::ParseBatteryLine(line, battery)
+                                                       : uts::IpcPoseClient::ParseButtonsLine(line, buttons);
+        if (ok)
+        {
+            std::fprintf(stderr, "should be rejected: %s\n", line.c_str());
+            ++g_failures;
+        }
+    }
+
+    uts::BatteryStatus battery;
+    CHECK(uts::IpcPoseClient::ParseBatteryLine("BATTERY 1 AA:BB 86 1", battery));
+    CHECK(battery.serial == "AA:BB" && battery.percent == 86 && battery.charging);
+    uts::ButtonState buttons;
+    CHECK(uts::IpcPoseClient::ParseButtonsLine("BUTTONS 1 AA:BB 6", buttons));
+    CHECK(buttons.mask == (uts::kButtonGrip | uts::kButtonTrigger));
+}
+
 void TestFieldValues()
 {
     uts::TrackedPose pose;
@@ -165,6 +200,31 @@ void TestSocketStreaming()
     CHECK(!client.IsConnected());
 }
 
+void TestStatusOverSocket()
+{
+    FakeDaemon daemon;
+    uts::IpcPoseClient client(daemon.path);
+    CHECK(client.Connect());
+    const int conn = ::accept(daemon.listen_fd, nullptr, nullptr);
+    WriteAll(conn,
+             "BATTERY 1 t0 50 0\nHELLO 2 future message\nBUTTONS 1 t0 4\nBATTERY 1 t0 999 0\n"
+             "POSE 1 0 t0 ok 1 2 3 0 0 0 1 0 0 0 10\n");
+    int batteries = 0, buttons = 0, poses = 0;
+    uts::IpcPoseClient::Handlers handlers;
+    handlers.on_battery = [&](const uts::BatteryStatus &) { ++batteries; };
+    handlers.on_buttons = [&](const uts::ButtonState &) { ++buttons; };
+    handlers.on_pose = [&](const uts::TrackedPose &) { ++poses; };
+    for (int i = 0; i < 100 && poses == 0; ++i)
+    {
+        client.Poll(handlers);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    CHECK(batteries == 1); // the 999% line is dropped, the unknown tag is ignored
+    CHECK(buttons == 1);
+    CHECK(poses == 1);
+    ::close(conn);
+}
+
 void TestMissingDaemon()
 {
     uts::IpcPoseClient client("/tmp/uts-does-not-exist.sock");
@@ -204,12 +264,19 @@ void TestAgainstRealDaemon(const char *socket_path)
 {
     uts::IpcPoseClient client(socket_path);
     std::vector<uts::TrackedPose> seen;
-    for (int i = 0; i < 400 && seen.size() < 6; ++i)
+    int batteries = 0, buttons = 0;
+    uts::IpcPoseClient::Handlers handlers;
+    handlers.on_pose = [&](const uts::TrackedPose &p) { seen.push_back(p); };
+    handlers.on_battery = [&](const uts::BatteryStatus &b) { batteries += b.serial.rfind("mock-", 0) == 0; };
+    handlers.on_buttons = [&](const uts::ButtonState &b) { buttons += b.serial.rfind("mock-", 0) == 0; };
+    for (int i = 0; i < 400 && (seen.size() < 6 || batteries == 0 || buttons == 0); ++i)
     {
-        client.Poll([&](const uts::TrackedPose &p) { seen.push_back(p); });
+        client.Poll(handlers);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     CHECK(seen.size() >= 6);
+    CHECK(batteries > 0);
+    CHECK(buttons > 0);
     for (const auto &pose : seen)
     {
         CHECK(pose.serial.rfind("mock-", 0) == 0);
@@ -226,6 +293,8 @@ int main()
     std::signal(SIGPIPE, SIG_IGN);
     TestFixtures();
     TestFieldValues();
+    TestStatusFixtures();
+    TestStatusOverSocket();
     TestSocketStreaming();
     TestMissingDaemon();
     TestNewlineFlood();
