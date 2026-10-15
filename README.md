@@ -85,6 +85,7 @@ cmake --build steamvr_driver/build
 
 The staged runtime layout is emitted under `steamvr_driver/build/stage/ultimate_tracker_linux`.
 
+- [docs/roomstore.md](docs/roomstore.md): per-room calibration and switching
 - [docs/calibration.md](docs/calibration.md): aligning tracker space with the SteamVR playspace
 
 ## Tests
