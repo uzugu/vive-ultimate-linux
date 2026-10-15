@@ -51,6 +51,24 @@ So the package, as the server sees it, is a zip with **an `autosave0` file and a
 - What would settle the format without touching a tracker: the file names inside the tracker log bundle (`hdlog.tgz`) that the PC session already pulled
   (member names and sizes only; look for `autosave`, `general_map`, `file_pack_info`, `ed`). If a pack file is there, compare its first bytes with the three databases.
 
+## 3a. New from the tracker's own logs (PC step 2): how trackers move files between each other
+
+From `hdlog-getmap2.tgz` (log lines only, no map data):
+
+- **TCP 8053 is the file-transfer port.** A client tracker logs `ft_client_upload: [<path>] host addr=192.168.49.1, port=8053` (the host tracker's own Wi-Fi address). So `FT_PORT = 8053` in pyvut's enums
+  means *file transfer*, not face tracking, and HTC's server also listens on 8053 for the same job.
+- **The receiver writes where the sender says.** The receiving side logs `_file_download: [#22] filesize=219, mtu=1048576, outputfullname=/data/lambda/0/ed/file_pack_info_<n>_8.json`.
+  `#22` is the same message number as our header message 22, and `outputfullname` is a full path under `/data`, chosen by the sender (`targetfullname`). It then creates the folders (`mkdir_recursive`).
+  So the tracker's receiver is not confined to `/sdcard/`. HTC's PC library *does* confine itself: it takes the file's base name and always prefixes `/sdcard/` (0x3fd26 in the driver) [code].
+  Whether the tracker also accepts an arbitrary path from a PC peer is untested, but it is the same message.
+- **The sequence for a map pack.** Each boot a client sends its `pubkey.pem` (as `<n>_<m>_pubkey.pem`) and a small `file_pack_info_<n>_<m>.json` (219 bytes seen) into `/data/lambda/<dev>/ed/`, then the host sends the map files. A `Lambda_PROPKEY_SEND_FILE` entry has the form
+  `<device>:<local path>:<target path>`.
+- **The saved map is written at standby** (`SaveMapsInMultiMap id:95, kf:134, mp:1318 ... order:241`, `SaveMapToSqlite` about 6 s). An older log shows the previous map, id 91 (175 keyframes), saved the same way on 26 September.
+- **Tracker build:** `ro.build.display.id` is `msm8953_64-userdebug 7.1.2 N2G47H 928 test-keys`, Android 7.1.2, model "msm8953 for arm64". HTC shipped a userdebug build, and a property `lambda.force.client.to.host` exists.
+- **Not in the logs:** no `autosave`, `general_map` or pack file in the archive, and no hit for `persist.vbp.map_*` other than HTC's own HID reads at 22:21 (empty values).
+
+So the likely import is **not** the VBP `autosave0` route. It is to behave like a host tracker: send `file_pack_info` and the map files over the transfer protocol to the paths a host would use. The unknowns are the pack-info JSON schema and whether the receiver verifies a signature.
+
 ## 3b. Two obstacles found in the tracker logs (not in the PC binaries)
 
 - **Signed packs.** On every boot a client logs `/data/lambda/8/ed/file_pack_info_<n>_0.json` and stores the sending tracker's `/data/.ssl/pubkey.pem` as `<n>_0_pubkey.pem`
