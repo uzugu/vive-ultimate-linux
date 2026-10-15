@@ -4,6 +4,16 @@ For agents continuing this project from the owner's own PC. Repo: <https://githu
 Detailed notes are linked below. Paths like `research/...` are in the project's shared folder and, once PR #1 is merged
 or checked out, the same files live under `docs/`. Claims in the notes are tagged code / string / inferred / guess: trust them in that order.
 
+## 0. Who works on what (updated 2026-10-15)
+
+Split about 50/50 between the cloud session and the agent on the owner's PC. PRs #1 to #6 are merged into `main`.
+
+- **Cloud (claimed, no hardware needed):** calibration offset in the driver and `ultimate-linux-support-calibrate`
+  (docs/calibration.md); then battery, buttons and haptics through the pipe protocol (`docs/re/driver-pipes.md`);
+  then code and tests from the pairing/status and settings/power notes (`docs/re/pairing-and-status.md`, `settings-power.md`).
+- **PC agent:** map import, live tracker tests, Windows checks, packet captures that confirm the hypotheses in `docs/re/`.
+- Update this list when you take or finish something, so nobody doubles up.
+
 ## 1. Goal
 
 One open app for **Linux x86-64, Linux ARM64 and Windows** that replaces the tracker part of VIVE Hub. The main objective is
@@ -13,7 +23,7 @@ First target is parity with VIVE Hub for Windows (v1.2.7), then the multiplatfor
 
 ## 2. Repo layout and the four PRs
 
-All PRs are open against `main`, which still holds only the original scaffold (Python pose daemon in `python/pose_daemon`,
+(Written before the merge: all four PRs below are now merged into `main`, which also has tests and CI from PRs #5 and #6.) Original description: all PRs were open against `main`, which held only the original scaffold (Python pose daemon in `python/pose_daemon`,
 Linux OpenVR driver skeleton in `steamvr_driver`, `protocol/pose-v1.md`).
 
 | PR | Branch | Holds |

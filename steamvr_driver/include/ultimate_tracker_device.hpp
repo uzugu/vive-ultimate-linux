@@ -25,9 +25,9 @@ class UltimateTrackerDevice final : public vr::ITrackedDeviceServerDriver
     const std::string &serial() const;
     void UpdateFromPose(const TrackedPose &pose);
     void MarkDisconnected();
+    static bool IsPoseUsable(const TrackedPose &pose);
 
   private:
-    static bool IsPoseUsable(const TrackedPose &pose);
     static vr::DriverPose_t MakeDefaultPose();
     static vr::HmdQuaternion_t ToOpenVrQuaternion(const Quat &quat);
 

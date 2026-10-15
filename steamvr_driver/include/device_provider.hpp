@@ -1,5 +1,6 @@
 #pragma once
 
+#include "calibration.hpp"
 #include "ipc_pose_client.hpp"
 #include "ultimate_tracker_device.hpp"
 
@@ -33,6 +34,7 @@ class DeviceProvider final : public vr::IServerTrackedDeviceProvider
     std::string socket_path_;
     bool reload_settings_once_ = true;
     IpcPoseClient pose_client_;
+    CalibrationFile calibration_;
     std::unordered_map<std::string, std::unique_ptr<UltimateTrackerDevice>> devices_;
 };
 
