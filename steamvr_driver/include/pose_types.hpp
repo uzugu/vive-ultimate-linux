@@ -58,6 +58,27 @@ struct ButtonState
     int mask = 0;
 };
 
+// Daemon to client metadata (see protocol/pose-v1.md): HELLO, DEVICE and EVENT.
+struct HelloInfo
+{
+    std::string daemon_version;
+    std::string source;
+};
+
+struct DeviceInfo
+{
+    std::string serial;
+    int tracker_index = 0;
+    bool connected = false;
+};
+
+struct EventInfo
+{
+    std::string kind;
+    std::string serial; // empty when the event is not about one tracker
+    std::string detail; // empty when there is none
+};
+
 struct HapticPulse
 {
     std::string serial;

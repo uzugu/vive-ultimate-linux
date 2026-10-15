@@ -10,6 +10,9 @@ from .models import BUTTON_TRIGGER, BatteryStatus, ButtonState, HapticPulse, Tra
 
 
 class PoseSource(abc.ABC):
+    #: Short label sent in HELLO.
+    source_name = "custom"
+
     @abc.abstractmethod
     async def start(self) -> None:
         """Prepare the source."""
@@ -32,6 +35,8 @@ class PoseSource(abc.ABC):
 
 
 class MockPoseSource(PoseSource):
+    source_name = "mock"
+
     def __init__(self, tracker_count: int = 3) -> None:
         self._tracker_count = tracker_count
         self._start = time.monotonic()
@@ -93,6 +98,8 @@ class MockPoseSource(PoseSource):
 
 
 class PyVutPoseSource(PoseSource):
+    source_name = "pyvut"
+
     def __init__(
         self,
         mode: str = "DONGLE_USB",

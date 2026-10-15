@@ -4,7 +4,7 @@ import socket
 from collections.abc import Iterator
 
 from .endpoint import parse_endpoint
-from .models import BatteryStatus, ButtonState, TrackerPose
+from .models import BatteryStatus, ButtonState, DeviceInfo, Event, Hello, TrackerPose
 from .protocol import decode_message
 
 
@@ -31,7 +31,7 @@ class PoseStreamClient:
             self._sock.close()
             self._sock = None
 
-    def iter_messages(self) -> Iterator[TrackerPose | BatteryStatus | ButtonState]:
+    def iter_messages(self) -> Iterator[TrackerPose | BatteryStatus | ButtonState | Hello | DeviceInfo | Event]:
         if self._reader is None:
             raise RuntimeError("PoseStreamClient must be used as a context manager")
 
@@ -42,7 +42,7 @@ class PoseStreamClient:
             yield decode_message(stripped)
 
     def iter_poses(self) -> Iterator[TrackerPose]:
-        """Poses only; battery and button messages are skipped."""
+        """Poses only; every other message type is skipped."""
         for message in self.iter_messages():
             if isinstance(message, TrackerPose):
                 yield message

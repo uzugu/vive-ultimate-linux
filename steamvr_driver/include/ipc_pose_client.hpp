@@ -46,6 +46,9 @@ class IpcPoseClient
         std::function<void(const TrackedPose &)> on_pose;
         std::function<void(const BatteryStatus &)> on_battery;
         std::function<void(const ButtonState &)> on_buttons;
+        std::function<void(const HelloInfo &)> on_hello;
+        std::function<void(const DeviceInfo &)> on_device;
+        std::function<void(const EventInfo &)> on_event;
     };
 
     void Poll(const Handlers &handlers);
@@ -62,6 +65,10 @@ class IpcPoseClient
     bool SendHaptic(const HapticPulse &pulse);
     static bool ParseBatteryLine(const std::string &line, BatteryStatus &out);
     static bool ParseButtonsLine(const std::string &line, ButtonState &out);
+    // `HELLO 1 <version> <source>`, `DEVICE 1 <serial> <index> <0|1>`, `EVENT 1 <kind> <serial|-> <detail|->`.
+    static bool ParseHelloLine(const std::string &line, HelloInfo &out);
+    static bool ParseDeviceLine(const std::string &line, DeviceInfo &out);
+    static bool ParseEventLine(const std::string &line, EventInfo &out);
 
   private:
 

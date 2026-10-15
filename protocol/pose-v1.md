@@ -79,6 +79,22 @@ Where the values come from: HTC's tracker reports battery in the second peripher
 `battery_from_peripheral_byte`. The mock source produces both message types; the `pyvut` source does not yet,
 because where pyvut exposes those bytes is unverified.
 
+## Daemon information
+
+Three more daemon-to-client line types. Unknown tags are still ignored, so older consumers are unaffected.
+
+```text
+HELLO 1 <daemon_version> <source>
+DEVICE 1 <serial> <tracker_index> <connected 0|1>
+EVENT 1 <kind> <serial|-> <detail|->
+```
+
+- `HELLO` is the first line of every connection. `source` is `mock`, `pyvut` or `custom`. The C++ driver logs it.
+- `DEVICE` says a tracker is delivering poses (`1`) or has gone `lost` (`0`). It is derived from the pose `status`, sent on change, repeated about once a second, and replayed to a new client.
+- `EVENT` reports something that is not a per-tracker value. `kind` is `[a-z][a-z0-9_]{0,31}`; `serial` and `detail` are `-` when absent and otherwise one token without spaces. Defined kinds: `source_error` (the pose source failed; sent once per outage, and to a client that joins mid-outage) and `source_recovered`. The C++ driver logs events. New kinds may appear; consumers ignore kinds they do not know.
+
+Vectors: [fixtures/meta_valid.txt](fixtures/meta_valid.txt), [fixtures/meta_invalid.txt](fixtures/meta_invalid.txt).
+
 ## Haptics (driver to daemon)
 
 The only client-to-daemon message. SteamVR's haptic event for a tracker's `/output/haptic` component is forwarded as

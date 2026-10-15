@@ -81,6 +81,45 @@ void TestFixtures()
     }
 }
 
+void TestMetaFixtures()
+{
+    const auto parses = [](const std::string &line) {
+        uts::HelloInfo hello;
+        uts::DeviceInfo device;
+        uts::EventInfo event;
+        if (line.rfind("HELLO", 0) == 0)
+        {
+            return uts::IpcPoseClient::ParseHelloLine(line, hello);
+        }
+        if (line.rfind("DEVICE", 0) == 0)
+        {
+            return uts::IpcPoseClient::ParseDeviceLine(line, device);
+        }
+        return uts::IpcPoseClient::ParseEventLine(line, event);
+    };
+    for (const auto &line : ReadFixture("meta_valid.txt"))
+    {
+        if (!parses(line))
+        {
+            std::fprintf(stderr, "should parse: %s\n", line.c_str());
+            ++g_failures;
+        }
+    }
+    for (const auto &line : ReadFixture("meta_invalid.txt"))
+    {
+        if (parses(line))
+        {
+            std::fprintf(stderr, "should be rejected: %s\n", line.c_str());
+            ++g_failures;
+        }
+    }
+    uts::EventInfo event;
+    CHECK(uts::IpcPoseClient::ParseEventLine("EVENT 1 tracking_lost AA:BB no_signal", event));
+    CHECK(event.kind == "tracking_lost" && event.serial == "AA:BB" && event.detail == "no_signal");
+    CHECK(uts::IpcPoseClient::ParseEventLine("EVENT 1 source_error - -", event));
+    CHECK(event.serial.empty() && event.detail.empty());
+}
+
 void TestStatusFixtures()
 {
     for (const auto &line : ReadFixture("status_valid.txt"))
@@ -424,6 +463,7 @@ int main()
     TestFixtures();
     TestFieldValues();
     TestStatusFixtures();
+    TestMetaFixtures();
     TestStatusOverSocket();
     TestSocketStreaming(FakeDaemon::Kind::Tcp);
 #ifndef _WIN32
