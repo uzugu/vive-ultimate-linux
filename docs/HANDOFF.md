@@ -44,20 +44,20 @@ Repo layout: `python/pose_daemon` (daemon, mock + `pyvut` source), `steamvr_driv
 
 **Linux daemon and driver.** Mock source works end to end in CI. The `pyvut` source publishes real poses but was never validated in this project
 against hardware; `pyvut` has no license, so it is an external dependency, not copied. Missing: calibration, Windows build of the driver
-(plan in `driver-pipes.md` ยง8: same byte stream over a named pipe `\\.\pipe\ULTIMATE_TRACKER_DRIVER`), new message types (`DEVICE`, `BATTERY`, `BUTTONS`, `EVENT`, `HAPTIC`, `HELLO`).
+(plan in `driver-pipes.md` ง8: same byte stream over a named pipe `\\.\pipe\ULTIMATE_TRACKER_DRIVER`), new message types (`DEVICE`, `BATTERY`, `BUTTONS`, `EVENT`, `HAPTIC`, `HELLO`).
 
 **Pairing and status.** Fully decoded statically; nothing captured. Pair `1D 09 00 01 m0..m4`, unpair `1D 09 06 01`, status query `0x1E`, battery
-`percent = (p1 & 0x3f) * 2`, charging `p1 & 0x40` ([pairing-and-status.md](re/pairing-and-status.md) ยง3, ยง5, ยง8). Live logs and dongle status agree at log level; raw bytes need a `usbmon` / USB capture.
+`percent = (p1 & 0x3f) * 2`, charging `p1 & 0x40` ([pairing-and-status.md](re/pairing-and-status.md) ง3, ง5, ง8). Live logs and dongle status agree at log level; raw bytes need a `usbmon` / USB capture.
 
 **Settings and power.** Command strings known from code: auto-sleep `pAS_TS<n>`, power off `APF`, reboot `APR`, camera rate `ACF<n>`, factory reset USB HID `FF AF`
-([settings-power.md](re/settings-power.md) ยง10). Power frequency not found. Wire commands are hypotheses until a capture agrees.
+([settings-power.md](re/settings-power.md) ง10). Power frequency not found. Wire commands are hypotheses until a capture agrees.
 
 **SteamVR pipe protocol.** `TrackerNamedPipe` etc., framing and tables decoded; the 85-byte pose record's quaternion order and last six floats are unconfirmed
-([driver-pipes.md](re/driver-pipes.md) ยง9). We do not need to speak HTC's protocol for the product; it is a spec of the data we need, and `htc_pipe_codec` can mock it for regression.
+([driver-pipes.md](re/driver-pipes.md) ง9). We do not need to speak HTC's protocol for the product; it is a spec of the data we need, and `htc_pipe_codec` can mock it for regression.
 
-**Map export (proven).** Via HTC's log tool, see ยง4.
+**Map export (proven).** Via HTC's log tool, see ง4.
 
-**Map import (unsolved).** See ยง5. No sender exists; the repo holds only message builders and a passive listener.
+**Map import (unsolved).** See ง5. No sender exists; the repo holds only message builders and a passive listener.
 
 ## 4. Proven on hardware
 
@@ -72,7 +72,7 @@ against hardware; `pyvut` has no license, so it is an external dependency, not c
 
 ## 5. Map-transfer protocol decoded so far
 
-Source: tracker logs, [vivehub-map-import.md](re/vivehub-map-import.md) ยง3a/3b and [vivehub-windows-map-transfer.md](re/vivehub-windows-map-transfer.md).
+Source: tracker logs, [vivehub-map-import.md](re/vivehub-map-import.md) ง3a/3b and [vivehub-windows-map-transfer.md](re/vivehub-windows-map-transfer.md).
 
 - The tracker **dials out** to a TCP server on the PC/host. `ViveTrackerServer.exe` listens on TCP 3680, 8053, 9005, 9527, 15680 and UDP 9005. Only **8053 = file transfer** is tied to a role; 9527 is seen next to it but unconfirmed; 9005 is probably poses/connection; others unmatched. HTC's server must be stopped to listen ourselves.
 - Control link strings: host sends ack `FK<n>`, tracker answers `ft_download: filename=<n>` and connects to `<host>:8053` to fetch file index `<n>`. State acks `P61:<key>,<value>` (`P61:0,1` ready, `1,1` first file, `2,1` host key, `3,1` host map received, `5,1` map exists). Reset trigger `P64:3`.
@@ -97,7 +97,7 @@ Hardware steps additionally need the owner's approval (section 7).
 | # | Owner | Status | Task | HW |
 |---|---|---|---|---|
 | T1 | PC | claimed (PC Codex, 2026-10-15) | Decode `file_pack_info`: schema of the 502-byte JSON from log extracts and strings. Partial local audit: [file-pack-info.md](re/file-pack-info.md), aggregate scanner `python/tools/vut_pack_evidence.py`. Existing backup has no metadata body or logged JSON keys; signing is unconfirmed. Needs a metadata body or tracker-side serializer/parser. Done when every field is named and tagged and signatures/checksums are identified. | logs only |
-| T2 | PC | open | Passive capture on 8053: stop HTC's `ViveTrackerServer.exe`, run `python/tools/vut_ft_listen.py`, let a tracker connect, record the first frames; match ports 8053/9527/9005 to roles. Files: extend `vut_ft_listen.py`, new note. Never sends. Done when ports are matched and frames documented. | yes |
+| T2 | PC | claimed (PC Codex, 2026-10-15) | Passive capture on 8053: stop HTC's `ViveTrackerServer.exe`, run `python/tools/vut_ft_listen.py`, let a tracker connect, record the first frames; match ports 8053/9527/9005 to roles. Files: extend `vut_ft_listen.py`, new note. Never sends. Done when ports are matched and frames documented. | yes |
 | T3 | PC | open | Multi-map test: build a second map without clearing the first, standby, re-export with `-getmap`, compare `general.db`. Done when a note says whether two maps coexist. Decides the room design. | yes |
 | T4 | CLOUD | done (PR #18) | `python/vut_roomstore` + `vut room`: per-room calibration, switching rewrites the driver calibration file, map files kept private (0700, refused inside a git work tree). See `docs/roomstore.md`. Not done: parsing real HTC `Calibration.json`/`Map_main` (PC agent, needs real files) and the wireless import/export (T1). | no |
 | T5 | CLOUD | mostly done (PRs #9, #14, protocol-meta PR) | Pose protocol in daemon + C++ client: `POSE`, `BATTERY`, `BUTTONS`, `HAPTIC`, `HELLO`, `DEVICE`, `EVENT` with shared fixtures and CI (`protocol/pose-v1.md`). Not done: battery/buttons/haptic from the `pyvut` source (needs T11/T8 to find where the bytes are). | no |
@@ -106,9 +106,9 @@ Hardware steps additionally need the owner's approval (section 7).
 | T8 | PC | open | Live validation of T7 and pairing/status: USB capture (`usbmon`/Wireshark USBPcap) of pair, unpair, cancel, power-off; TCP capture while changing each setting in HTC's Hub; report differences. Factory reset last, on a spare tracker. | yes |
 | T9 | PC | claimed (PC Codex, 2026-10-15) | Windows run checks: build the SteamVR driver and daemon on Windows, run the cross-language test, load the driver in SteamVR with one and two trackers. | yes |
 | T10 | CLOUD | done except hardware checks (PR #19) | Loopback TCP replaces the named-pipe idea (`tcp:127.0.0.1:38450`, `protocol/pose-v1.md` Endpoints); C++ client and tests are portable, CMake builds `win64`, CI has a `windows` job. See `docs/windows.md`. Not done: running in real SteamVR on Windows, `vrpathreg` registration check (PC agent, T9). | no |
-| T11 | PC | open | Pose capture to close `driver-pipes.md` ยง9 item 1: pipe proxy or hook on the running server with one and two trackers; log pose records. | yes |
+| T11 | PC | open | Pose capture to close `driver-pipes.md` ง9 item 1: pipe proxy or hook on the running server with one and two trackers; log pose records. | yes |
 | T12 | CLOUD | partly done (PR #20) | `vut` command (`python/vut_app`), PyInstaller `packaging/build.sh`, CI `package` matrix for Linux x86-64/ARM64/Windows (`docs/packaging.md`). GUI skeleton: `vut gui` with Status and Rooms tabs working and a read-only Pair tab (PR gui). Not done: pairing itself, bundling `pyvut`. | no |
-| T13 | PC | open | Map import sender, last: needs T1 and T2 answers; spare tracker with a backed-up map. First step is a 1 KB file to `/sdcard/` and reading the u24 reply (`vivehub-map-import.md` ยง4). Earlier sessions were stopped by the automatic safety check here (section 9): if it happens, tell the owner, do not retry blindly. | yes |
+| T13 | PC | open | Map import sender, last: needs T1 and T2 answers; spare tracker with a backed-up map. First step is a 1 KB file to `/sdcard/` and reading the u24 reply (`vivehub-map-import.md` ง4). Earlier sessions were stopped by the automatic safety check here (section 9): if it happens, tell the owner, do not retry blindly. | yes |
 | T14 | CLOUD | open | Docs and housekeeping: keep this file and the roadmap current, README refresh, read the VIVE EULA reverse-engineering clause and record the outcome before publishing beyond names/ids/layouts. | no |
 | T15 | PC | open | Collect logs on request (`hdlog.tgz`, server/driver logs) and keep `%USERPROFILE%\Documents\VIVE-map-backups` current; check free disk on C: first (it was full). | yes |
 
