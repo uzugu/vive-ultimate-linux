@@ -23,8 +23,8 @@ jobs:
       - name: Tool and research-helper tests
         run: |
           pip install pytest
-          PYTHONPATH=python/vut_settings:python/htc_pipe_codec/src \
-            python -m pytest -q tests python/vut_settings/tests python/htc_pipe_codec/tests
+          PYTHONPATH=python/vut_settings:python/htc_pipe_codec/src:python/vut_dongle \
+            python -m pytest -q tests python/vut_settings/tests python/htc_pipe_codec/tests python/vut_dongle/tests
 
   driver:
     runs-on: ubuntu-latest
