@@ -19,7 +19,7 @@ Order: first parity with VIVE Hub for Windows 1.2.7 ([windows-parity.md](windows
 |---|---|---|
 | M0 | Hardware baseline: poses from the dongle on Linux; map export proven; multi-map test | Export proven. Linux pose streaming not retested here. Multi-map not tested. |
 | M1 | Manual room snapshots (`save` / `load`), re-imported map reports `MAP_REUSE_OK` | Save half proven (export). **Load half unsolved.** |
-| M2 | Daemon + SteamVR driver, per-room calibration | Linux daemon and driver skeleton merged with CI. Calibration not started. |
+| M2 | Daemon + SteamVR driver, per-room calibration | Linux daemon and driver skeleton merged with CI. Calibration offset merged (PR #8), battery/buttons/haptics merged. |
 | M3 | GUI: pair, status, rooms, one-click switch; builds for all three platforms | Not started |
 | M4 | Auto room detection (`MAP_REUSE_*`), our own map-build flow | Not started |
 
@@ -99,15 +99,15 @@ Hardware steps additionally need the owner's approval (section 7).
 | T1 | PC | open | Decode `file_pack_info`: schema of the 502-byte JSON from log extracts and strings. New `docs/re/file-pack-info.md`. Done when every field is named and tagged and signatures/checksums are identified. | logs only |
 | T2 | PC | open | Passive capture on 8053: stop HTC's `ViveTrackerServer.exe`, run `python/tools/vut_ft_listen.py`, let a tracker connect, record the first frames; match ports 8053/9527/9005 to roles. Files: extend `vut_ft_listen.py`, new note. Never sends. Done when ports are matched and frames documented. | yes |
 | T3 | PC | open | Multi-map test: build a second map without clearing the first, standby, re-export with `-getmap`, compare `general.db`. Done when a note says whether two maps coexist. Decides the room design. | yes |
-| T4 | CLOUD | open | Room store (no HW): per-room layout (name, host serial, origin, calibration), parse `Calibration.json` and `Map_main` times, synthetic tests. New `python/` package. Never commit real maps. | no |
-| T5 | CLOUD | claimed (Linux SteamVR driver thread, 2026-10-15) | Pose protocol v3 in daemon + C++ client: `DEVICE`, `BATTERY`, `BUTTONS`, `EVENT`, `HAPTIC`, `HELLO` (see `driver-pipes.md` §8), with shared fixtures and CI. Done when both parsers pass the fixtures. | no |
-| T6 | CLOUD | claimed (Linux SteamVR driver thread, 2026-10-15) | Calibration offset (daemon-side transform, per room) and a Space-Calibrator-style math module with tests. | no (needs T9 to verify live) |
-| T7 | CLOUD | open | Pairing/status library from `pairing-and-status.md` §8 and settings library (`python/vut_settings` extended: auto-sleep, power, camera rate), written against a mock dongle/tracker with tests. | no |
+| T4 | CLOUD | claimed (Linux SteamVR driver thread, 2026-10-15) | Room store (no HW): per-room layout (name, host serial, origin, calibration), parse `Calibration.json` and `Map_main` times, synthetic tests. New `python/` package. Never commit real maps. | no |
+| T5 | CLOUD | partly done (PRs #9, #14); `DEVICE`, `EVENT`, `HELLO` still open | Pose protocol v3 in daemon + C++ client: `BATTERY`, `BUTTONS`, `HAPTIC` are merged with fixtures and CI (`protocol/pose-v1.md`). Not done: `DEVICE`, `EVENT`, `HELLO`, and battery/buttons/haptic from the `pyvut` source (needs T11/T8 to find where the bytes are). | no |
+| T6 | CLOUD | done for the driver (PR #8); per-room use waits for T4 | Calibration offset applied in the driver from a live-reloaded file, `ultimate-linux-support-calibrate` (yaw + translation fit), `docs/calibration.md`. Live check needs T9. | no (live check needs T9) |
+| T7 | CLOUD | done (PRs #15, #16); mock dongle open | `python/vut_dongle` (0x1D pair/unpair/cancel, 0x1E slot status, battery byte) and `vut_settings.hub` (Hub JSON commands) with tests. Not done: a mock dongle/tracker to run them against. T8 validates the bytes. | no |
 | T8 | PC | open | Live validation of T7 and pairing/status: USB capture (`usbmon`/Wireshark USBPcap) of pair, unpair, cancel, power-off; TCP capture while changing each setting in HTC's Hub; report differences. Factory reset last, on a spare tracker. | yes |
 | T9 | PC | open | Windows run checks: build the SteamVR driver and daemon on Windows, run the cross-language test, load the driver in SteamVR with one and two trackers. | yes |
-| T10 | CLOUD | open | Windows transport and build: named-pipe transport beside the Unix socket, Windows CMake build, `openvrpaths.vrpath` registration, CI on a Windows runner. | no |
+| T10 | CLOUD | claimed (Linux SteamVR driver thread, 2026-10-15) | Windows transport and build: named-pipe transport beside the Unix socket, Windows CMake build, `openvrpaths.vrpath` registration, CI on a Windows runner. | no |
 | T11 | PC | open | Pose capture to close `driver-pipes.md` §9 item 1: pipe proxy or hook on the running server with one and two trackers; log pose records. | yes |
-| T12 | CLOUD | open | Packaging and app shell: single entry point (`vut` CLI/daemon), PyInstaller config, Linux x86-64/ARM64/Windows build matrix in CI, GUI skeleton (pair, status, rooms). | no |
+| T12 | CLOUD | claimed (Linux SteamVR driver thread, 2026-10-15) | Packaging and app shell: single entry point (`vut` CLI/daemon), PyInstaller config, Linux x86-64/ARM64/Windows build matrix in CI, GUI skeleton (pair, status, rooms). | no |
 | T13 | PC | open | Map import sender, last: needs T1 and T2 answers; spare tracker with a backed-up map. First step is a 1 KB file to `/sdcard/` and reading the u24 reply (`vivehub-map-import.md` §4). Earlier sessions were stopped by the automatic safety check here (section 9): if it happens, tell the owner, do not retry blindly. | yes |
 | T14 | CLOUD | open | Docs and housekeeping: keep this file and the roadmap current, README refresh, read the VIVE EULA reverse-engineering clause and record the outcome before publishing beyond names/ids/layouts. | no |
 | T15 | PC | open | Collect logs on request (`hdlog.tgz`, server/driver logs) and keep `%USERPROFILE%\Documents\VIVE-map-backups` current; check free disk on C: first (it was full). | yes |
