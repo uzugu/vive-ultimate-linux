@@ -87,7 +87,8 @@ Source: tracker logs, [vivehub-map-import.md](re/vivehub-map-import.md) §3a/3b 
 
 The work is split roughly 50/50 between two owners:
 
-- **CLOUD** = the cloud Claude threads. Owns everything that needs no hardware: Linux pose daemon and driver, pipe-protocol features (calibration offset, battery, buttons, haptics), code for pairing/status and settings/power, CI, packaging, the multiplatform app shell, docs.
+- **CLOUD** = the cloud Claude threads (T5 and T6 are with the Linux SteamVR driver thread; cloud does not redo blocked map-import work, so T1 and T13 are PC's).
+  Owns everything that needs no hardware: Linux pose daemon and driver, pipe-protocol features (calibration offset, battery, buttons, haptics), code for pairing/status and settings/power, CI, packaging, the multiplatform app shell, docs.
 - **PC** = the agent on the owner's PC. Owns everything that needs the PC or the trackers: map import and the 8053 transfer work, live hardware tests of each feature, Windows build and run checks, log collection.
 
 **Claim or release a task by editing the Owner/Status columns below in a PR** (one small PR per change, title `handoff: claim T<n>` or `release T<n>`), so the two sides never collide. Do not start a task whose Status is `claimed` by the other side. Statuses: `open`, `claimed (who, date)`, `done (PR)`.
@@ -95,12 +96,12 @@ Hardware steps additionally need the owner's approval (section 7).
 
 | # | Owner | Status | Task | HW |
 |---|---|---|---|---|
-| T1 | CLOUD | open | Decode `file_pack_info`: schema of the 502-byte JSON from log extracts and strings. New `docs/re/file-pack-info.md`. Done when every field is named and tagged and signatures/checksums are identified. | no |
+| T1 | PC | open | Decode `file_pack_info`: schema of the 502-byte JSON from log extracts and strings. New `docs/re/file-pack-info.md`. Done when every field is named and tagged and signatures/checksums are identified. | logs only |
 | T2 | PC | open | Passive capture on 8053: stop HTC's `ViveTrackerServer.exe`, run `python/tools/vut_ft_listen.py`, let a tracker connect, record the first frames; match ports 8053/9527/9005 to roles. Files: extend `vut_ft_listen.py`, new note. Never sends. Done when ports are matched and frames documented. | yes |
 | T3 | PC | open | Multi-map test: build a second map without clearing the first, standby, re-export with `-getmap`, compare `general.db`. Done when a note says whether two maps coexist. Decides the room design. | yes |
 | T4 | CLOUD | open | Room store (no HW): per-room layout (name, host serial, origin, calibration), parse `Calibration.json` and `Map_main` times, synthetic tests. New `python/` package. Never commit real maps. | no |
-| T5 | CLOUD | open | Pose protocol v3 in daemon + C++ client: `DEVICE`, `BATTERY`, `BUTTONS`, `EVENT`, `HAPTIC`, `HELLO` (see `driver-pipes.md` §8), with shared fixtures and CI. Done when both parsers pass the fixtures. | no |
-| T6 | CLOUD | open | Calibration offset (daemon-side transform, per room) and a Space-Calibrator-style math module with tests. | no (needs T9 to verify live) |
+| T5 | CLOUD | claimed (Linux SteamVR driver thread, 2026-10-15) | Pose protocol v3 in daemon + C++ client: `DEVICE`, `BATTERY`, `BUTTONS`, `EVENT`, `HAPTIC`, `HELLO` (see `driver-pipes.md` §8), with shared fixtures and CI. Done when both parsers pass the fixtures. | no |
+| T6 | CLOUD | claimed (Linux SteamVR driver thread, 2026-10-15) | Calibration offset (daemon-side transform, per room) and a Space-Calibrator-style math module with tests. | no (needs T9 to verify live) |
 | T7 | CLOUD | open | Pairing/status library from `pairing-and-status.md` §8 and settings library (`python/vut_settings` extended: auto-sleep, power, camera rate), written against a mock dongle/tracker with tests. | no |
 | T8 | PC | open | Live validation of T7 and pairing/status: USB capture (`usbmon`/Wireshark USBPcap) of pair, unpair, cancel, power-off; TCP capture while changing each setting in HTC's Hub; report differences. Factory reset last, on a spare tracker. | yes |
 | T9 | PC | open | Windows run checks: build the SteamVR driver and daemon on Windows, run the cross-language test, load the driver in SteamVR with one and two trackers. | yes |
