@@ -113,6 +113,8 @@ class StreamWorker:
             try:
                 with PoseStreamClient(self._endpoint) as client:
                     self._client = client
+                    if self._stop.is_set():
+                        break
                     self._state.set_connection(True)
                     for message in client.iter_messages():
                         self._state.apply(message)
@@ -123,6 +125,8 @@ class StreamWorker:
                     self._state.set_connection(False, f"waiting for daemon at {self._endpoint} ({exc})")
             finally:
                 self._client = None
+                if self._stop.is_set():
+                    self._state.set_connection(False)
             if not self._stop.is_set():
                 self._state.set_connection(False, self._state.error or f"waiting for daemon at {self._endpoint}")
                 self._stop.wait(self._retry_s)

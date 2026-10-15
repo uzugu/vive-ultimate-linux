@@ -87,6 +87,16 @@ class StoreTests(unittest.TestCase):
         self.store.delete("b")
         self.assertIsNone(self.store.active_slug())
 
+    def test_failed_calibration_write_preserves_active_room(self) -> None:
+        self.store.create("a")
+        self.store.create("b", Calibration((1, 0, 0)))
+        self.store.use("a")
+        blocked = Path(self._tmp.name) / "not-a-directory"
+        blocked.write_text("block parent creation")
+        with self.assertRaises(OSError):
+            self.store.use("b", blocked / "calibration.txt")
+        self.assertEqual(self.store.active_slug(), "a")
+
     def test_format_line_matches_python_daemon_grammar(self) -> None:
         line = format_calibration_line(Calibration((0, 1, 2), (0, 0, 0, 3)))
         self.assertEqual(line, "CALIBRATION 1 0.000000000 1.000000000 2.000000000 0.000000000 0.000000000 0.000000000 1.000000000")
@@ -98,7 +108,8 @@ class StoreTests(unittest.TestCase):
         room = self.store.attach_map_files("a", [db])
         self.assertEqual(room.map_files, ["general.db"])
         self.assertTrue((self.root / "a" / "maps" / "general.db").is_file())
-        self.assertEqual((self.root / "a" / "maps").stat().st_mode & 0o077, 0)
+        if os.name != "nt":  # Windows chmod does not implement POSIX access bits.
+            self.assertEqual((self.root / "a" / "maps").stat().st_mode & 0o077, 0)
         with self.assertRaises(RoomError):
             self.store.attach_map_files("a", [Path(self._tmp.name) / "photo.jpg"])
 

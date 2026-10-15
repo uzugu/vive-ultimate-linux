@@ -20,7 +20,7 @@ Order: first parity with VIVE Hub for Windows 1.2.7 ([windows-parity.md](windows
 | M0 | Hardware baseline: poses from the dongle on Linux; map export proven; multi-map test | Export proven. Linux pose streaming not retested here. Multi-map not tested. |
 | M1 | Manual room snapshots (`save` / `load`), re-imported map reports `MAP_REUSE_OK` | Save half proven (export). **Load half unsolved.** |
 | M2 | Daemon + SteamVR driver, per-room calibration | Linux daemon and driver skeleton merged with CI. Calibration offset merged (PR #8), battery/buttons/haptics merged. |
-| M3 | GUI: pair, status, rooms, one-click switch; builds for all three platforms | Not started |
+| M3 | GUI: pair, status, rooms, one-click switch; builds for all three platforms | CLI, GUI shell and package matrix merged (#20, #23); pairing and map loading remain unavailable. |
 | M4 | Auto room detection (`MAP_REUSE_*`), our own map-build flow | Not started |
 
 ## 2. What is on `main` (PRs #1 to #6 merged; CI runs every test)
@@ -42,9 +42,7 @@ Repo layout: `python/pose_daemon` (daemon, mock + `pyvut` source), `steamvr_driv
 
 ## 3. State of each workstream
 
-**Linux daemon and driver.** Mock source works end to end in CI. The `pyvut` source publishes real poses but was never validated in this project
-against hardware; `pyvut` has no license, so it is an external dependency, not copied. Missing: calibration, Windows build of the driver
-(plan in `driver-pipes.md` §8: same byte stream over a named pipe `\\.\pipe\ULTIMATE_TRACKER_DRIVER`), new message types (`DEVICE`, `BATTERY`, `BUTTONS`, `EVENT`, `HAPTIC`, `HELLO`).
+**Daemon and driver.** Mock poses and metadata, haptics, live calibration and the Windows loopback TCP build are implemented. The named-pipe idea was superseded by PR #19. Local Windows app/build checks are in [windows-app-testing.md](windows-app-testing.md). The external `pyvut` source has not been hardware-validated here; real battery/button/haptic integration remains incomplete.
 
 **Pairing and status.** Fully decoded statically; nothing captured. Pair `1D 09 00 01 m0..m4`, unpair `1D 09 06 01`, status query `0x1E`, battery
 `percent = (p1 & 0x3f) * 2`, charging `p1 & 0x40` ([pairing-and-status.md](re/pairing-and-status.md) §3, §5, §8). Live logs and dongle status agree at log level; raw bytes need a `usbmon` / USB capture.
@@ -101,10 +99,10 @@ Hardware steps additionally need the owner's approval (section 7).
 | T3 | PC | open | Multi-map test: build a second map without clearing the first, standby, re-export with `-getmap`, compare `general.db`. Done when a note says whether two maps coexist. Decides the room design. | yes |
 | T4 | CLOUD | done (PR #18) | `python/vut_roomstore` + `vut room`: per-room calibration, switching rewrites the driver calibration file, map files kept private (0700, refused inside a git work tree). See `docs/roomstore.md`. Not done: parsing real HTC `Calibration.json`/`Map_main` (PC agent, needs real files) and the wireless import/export (T1). | no |
 | T5 | CLOUD | mostly done (PRs #9, #14, protocol-meta PR) | Pose protocol in daemon + C++ client: `POSE`, `BATTERY`, `BUTTONS`, `HAPTIC`, `HELLO`, `DEVICE`, `EVENT` with shared fixtures and CI (`protocol/pose-v1.md`). Not done: battery/buttons/haptic from the `pyvut` source (needs T11/T8 to find where the bytes are). | no |
-| T6 | CLOUD | done for the driver (PR #8); per-room use waits for T4 | Calibration offset applied in the driver from a live-reloaded file, `ultimate-linux-support-calibrate` (yaw + translation fit), `docs/calibration.md`. Live check needs T9. | no (live check needs T9) |
+| T6 | CLOUD | done for the driver (PR #8); per-room use implemented in #18 | Calibration offset applied in the driver from a live-reloaded file, `ultimate-linux-support-calibrate` (yaw + translation fit), `docs/calibration.md`. Live check needs T9. | no (live check needs T9) |
 | T7 | CLOUD | done (PRs #15, #16); mock dongle open | `python/vut_dongle` (0x1D pair/unpair/cancel, 0x1E slot status, battery byte) and `vut_settings.hub` (Hub JSON commands) with tests. Not done: a mock dongle/tracker to run them against. T8 validates the bytes. | no |
 | T8 | PC | open | Live validation of T7 and pairing/status: USB capture (`usbmon`/Wireshark USBPcap) of pair, unpair, cancel, power-off; TCP capture while changing each setting in HTC's Hub; report differences. Factory reset last, on a spare tracker. | yes |
-| T9 | PC | claimed (PC Codex, 2026-10-15) | Windows run checks: build the SteamVR driver and daemon on Windows, run the cross-language test, load the driver in SteamVR with one and two trackers. | yes |
+| T9 | PC | claimed (PC Codex, 2026-10-15) | Partial local validation: [windows-app-testing.md](windows-app-testing.md). MSVC driver build, 107 Python tests/77 subtests, C++ tests, frozen-client smoke and Python-to-C++ mock integration pass. Real SteamVR loading and one/two physical trackers remain untested. | yes |
 | T10 | CLOUD | done except hardware checks (PR #19) | Loopback TCP replaces the named-pipe idea (`tcp:127.0.0.1:38450`, `protocol/pose-v1.md` Endpoints); C++ client and tests are portable, CMake builds `win64`, CI has a `windows` job. See `docs/windows.md`. Not done: running in real SteamVR on Windows, `vrpathreg` registration check (PC agent, T9). | no |
 | T11 | PC | open | Pose capture to close `driver-pipes.md` §9 item 1: pipe proxy or hook on the running server with one and two trackers; log pose records. | yes |
 | T12 | CLOUD | partly done (PR #20) | `vut` command (`python/vut_app`), PyInstaller `packaging/build.sh`, CI `package` matrix for Linux x86-64/ARM64/Windows (`docs/packaging.md`). GUI skeleton: `vut gui` with Status and Rooms tabs working and a read-only Pair tab (PR gui). Not done: pairing itself, bundling `pyvut`. | no |

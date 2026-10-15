@@ -5,6 +5,7 @@ import tempfile
 import threading
 import time
 import unittest
+from pathlib import Path
 
 from ultimate_linux_support.models import BatteryStatus, ButtonState, DeviceInfo, Event, Hello, TrackerPose
 from ultimate_linux_support.server import PoseServer
@@ -59,6 +60,39 @@ class LiveStateTests(unittest.TestCase):
 
 
 class StreamWorkerTests(unittest.TestCase):
+    def test_worker_stops_when_daemon_accepts_but_sends_nothing(self) -> None:
+        with socket.socket() as server:
+            server.bind(("127.0.0.1", 0))
+            server.listen(1)
+            server.settimeout(3)
+            state = LiveState()
+            worker = StreamWorker(f"tcp:127.0.0.1:{server.getsockname()[1]}", state)
+            worker.start()
+            client, _ = server.accept()
+            with client:
+                deadline = time.monotonic() + 2
+                while not state.snapshot()[0] and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertTrue(state.snapshot()[0])
+                stopped = threading.Event()
+
+                def stop_worker() -> None:
+                    worker.stop()
+                    stopped.set()
+
+                closer = threading.Thread(target=stop_worker, daemon=True)
+                closer.start()
+                try:
+                    self.assertTrue(stopped.wait(3), "GUI close blocked on a silent daemon")
+                    self.assertFalse(worker._thread.is_alive())
+                    self.assertFalse(state.snapshot()[0])
+                finally:
+                    try:
+                        client.shutdown(socket.SHUT_RDWR)
+                    except OSError:
+                        pass
+                    closer.join(3)
+
     def test_worker_follows_a_real_daemon_and_reconnects(self) -> None:
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
@@ -129,13 +163,30 @@ class TkSmokeTests(unittest.TestCase):
             self.skipTest("no display")
         try:
             state = LiveState()
-            state.apply(pose())
+            state.apply(DeviceInfo("t0", 0, True))
+            state.apply(pose(status="lost"))
             with tempfile.TemporaryDirectory() as tmp:
                 store = RoomStore(f"{tmp}/rooms")
                 store.create("Room A")
                 refresh = build(root, state, RoomsModel(store, f"{tmp}/cal.txt"))
                 refresh()
                 root.update()
+                from tkinter import ttk
+
+                def widgets(parent):
+                    for child in parent.winfo_children():
+                        yield child
+                        yield from widgets(child)
+
+                tree = next(w for w in widgets(root) if isinstance(w, ttk.Treeview))
+                self.assertEqual(tree.item(tree.get_children()[0], "values")[1], "lost")
+                room_list = next(w for w in widgets(root) if isinstance(w, tk.Listbox))
+                room_list.selection_set(0)
+                button = next(w for w in widgets(root) if isinstance(w, ttk.Button)
+                              and w.cget("text") == "Apply selected calibration")
+                button.invoke()
+                self.assertEqual(store.active_slug(), "room-a")
+                self.assertTrue((Path(tmp) / "cal.txt").is_file())
         finally:
             root.destroy()
 

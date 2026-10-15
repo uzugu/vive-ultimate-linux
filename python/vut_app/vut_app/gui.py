@@ -9,10 +9,9 @@ from collections.abc import Sequence
 from .gui_model import LiveState, RoomsModel, StreamWorker, button_names
 
 PAIR_TEXT = (
-    "Pairing sends HTC dongle commands (pair, clear pairing) and is not wired up yet.\n\n"
-    "The packet layer exists (python/vut_dongle) but has never been run against a real dongle, so this tab\n"
-    "stays read-only until the PC agent has verified the commands on hardware (see docs/HANDOFF.md, T2/T3).\n\n"
-    "Use `vut doctor` to check that the daemon is reachable."
+    "Pairing is not available in this version.\n\n"
+    "Use VIVE Hub to pair your trackers.\n\n"
+    "The Status tab shows trackers received from the daemon."
 )
 
 
@@ -30,11 +29,16 @@ def build(root, state: LiveState, rooms: RoomsModel):  # type: ignore[no-untyped
     banner = tk.StringVar(value="connecting...")
     ttk.Label(status_tab, textvariable=banner).pack(anchor="w", padx=6, pady=6)
     columns = ("serial", "state", "tracking", "battery", "buttons", "position")
-    tree = ttk.Treeview(status_tab, columns=columns, show="headings", height=8)
+    table = ttk.Frame(status_tab)
+    table.pack(fill="both", expand=True, padx=6, pady=6)
+    tree = ttk.Treeview(table, columns=columns, show="headings", height=8)
     for name, width in zip(columns, (160, 90, 90, 90, 150, 200)):
         tree.heading(name, text=name.capitalize())
         tree.column(name, width=width, anchor="w")
-    tree.pack(fill="both", expand=True, padx=6, pady=6)
+    scroll = ttk.Scrollbar(table, orient="horizontal", command=tree.xview)
+    tree.configure(xscrollcommand=scroll.set)
+    scroll.pack(side="bottom", fill="x")
+    tree.pack(fill="both", expand=True)
 
     # -- Rooms -------------------------------------------------------------------------------------------
     rooms_tab = ttk.Frame(notebook)
@@ -62,7 +66,9 @@ def build(root, state: LiveState, rooms: RoomsModel):  # type: ignore[no-untyped
             room_msg.set(f"error: {exc}")
         reload_rooms()
 
-    ttk.Button(rooms_tab, text="Use selected room", command=use_selected).pack(anchor="w", padx=6)
+    ttk.Button(rooms_tab, text="Refresh rooms", command=reload_rooms).pack(anchor="w", padx=6)
+    ttk.Label(rooms_tab, text="Apply a saved room calibration. Tracker maps are not loaded.").pack(anchor="w", padx=6)
+    ttk.Button(rooms_tab, text="Apply selected calibration", command=use_selected).pack(anchor="w", padx=6)
     ttk.Label(rooms_tab, textvariable=room_msg).pack(anchor="w", padx=6, pady=6)
     reload_rooms()
 
@@ -81,7 +87,7 @@ def build(root, state: LiveState, rooms: RoomsModel):  # type: ignore[no-untyped
             battery = "-" if t.battery_percent is None else f"{t.battery_percent}%{' +' if t.charging else ''}"
             x, y, z = t.position_m
             tree.insert("", "end", values=(
-                t.serial, "connected" if t.connected else t.status, t.tracking_label, battery,
+                t.serial, t.status if t.status != "ok" else ("connected" if t.connected else "disconnected"), t.tracking_label, battery,
                 button_names(t.buttons), f"{x:.2f} {y:.2f} {z:.2f}"))
 
     return refresh

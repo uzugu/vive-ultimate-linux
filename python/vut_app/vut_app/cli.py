@@ -78,8 +78,8 @@ def doctor() -> int:
     print(f"endpoint: {spec}")
     calibration = os.environ.get("ULTIMATE_TRACKER_CALIBRATION", "(default location)")
     print(f"calibration file: {calibration}")
-    endpoint = parse_endpoint(spec)
     try:
+        endpoint = parse_endpoint(spec)
         if endpoint.kind == "tcp":
             conn = socket.create_connection((endpoint.host, endpoint.port), timeout=1)
         else:
@@ -89,7 +89,7 @@ def doctor() -> int:
         conn.close()
         print("daemon: reachable")
         return 0
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         print(f"daemon: not reachable ({exc}); start it with `vut daemon`")
         return 1
 

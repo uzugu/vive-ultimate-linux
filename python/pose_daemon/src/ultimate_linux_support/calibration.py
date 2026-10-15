@@ -56,7 +56,10 @@ def default_path() -> str:
     env = os.environ.get("ULTIMATE_TRACKER_CALIBRATION")
     if env:
         return env
-    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+    base = os.environ.get("XDG_CONFIG_HOME")
+    if not base and sys.platform == "win32":
+        base = os.environ.get("APPDATA")
+    base = base or os.path.join(os.path.expanduser("~"), ".config")
     return os.path.join(base, "ultimate-tracker", "calibration.txt")
 
 
