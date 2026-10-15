@@ -83,22 +83,35 @@ Source: tracker logs, [vivehub-map-import.md](re/vivehub-map-import.md) §3a/3b 
 
 **Unknown, and decisive:** the 502-byte `file_pack_info` format and whether it is signed; whether a PC peer can be accepted as host.
 
-## 6. Prioritised tasks
+## 6. Ownership and prioritised tasks
 
-Priority order. "HW" = needs a tracker or the dongle, so the owner must approve it first (section 7).
+The work is split roughly 50/50 between two owners:
 
-1. **Decode `file_pack_info` (no HW, or read-only HW).** What: find the 502-byte JSON's schema. Look in the exported `hdlog.tgz` members and the tracker log extracts (`hdlog-map-receive.txt`, `hdlog-transfer-lines.txt`, `pc-step-01/02` notes in the project files) for pack-info content, and in the `ed/` 217/219-byte variants; compare field names with strings in the Linux `tracker_server` and the Windows driver. Files: new `docs/re/file-pack-info.md`. Done when: every field is named with a tag, and it says which are checksums/signatures. Safe to start now.
-2. **Passive capture on port 8053 (HW, read-only).** What: stop HTC's `ViveTrackerServer.exe`, run `python/tools/vut_ft_listen.py`, let a tracker connect on Wi-Fi, record what it sends first. Files: `vut_ft_listen.py` (extend decoding), a new note. Done when: ports 8053/9527/9005 are matched to roles and the first frames are documented. Never sends anything.
-3. **Multi-map test (HW, owner's rooms).** Build a second map without clearing the first, let the tracker standby, re-export, compare `general.db` (`multimap_main`, `multimap_file`). Done when: the note says whether two maps can coexist. This decides the whole room design.
-4. **Map-quality and room metadata in our app (no HW).** Parse `Calibration.json`, map create/last-enter times from `Map_main`, per-room store layout (name, host serial, origin, calibration). Files: new `python/` package. Done when: tests pass with synthetic inputs. Never commit real maps.
-5. **Windows driver + daemon transport (no HW for build).** Named-pipe transport, Windows CMake build, registration via `openvrpaths.vrpath` ([driver-pipes.md](re/driver-pipes.md) §8). Done when: CI builds the driver on a Windows runner and the cross-language test passes there.
-6. **Pairing/status client (HW after a capture).** Implement §8 of `pairing-and-status.md` behind a small library; first validate with a `usbmon`/USB capture of pair, unpair, cancel, power-off. Done when: pair and status work on the dongle from Linux and Windows.
-7. **Settings client (HW).** Use `python/vut_settings`; capture TCP while changing each setting in HTC's Hub to confirm commands; keep factory reset for last, on a spare tracker.
-8. **Pose capture to close `driver-pipes.md` §9 item 1 (HW).** Pipe proxy or hook on the running server with one and two trackers.
-9. **Calibration (no HW to start).** Own overlay or daemon-side transform, Space Calibrator style (Hyblocker's fork, MIT, is in the Windows install; see `spacecalibrator-oss.zip`). Per-room offsets stored with the room.
-10. **Map import sender (HW, last).** Only after tasks 1 and 2 give the schema and signing answer, using a spare tracker whose map is already exported and backed up. Smallest first step: send a 1 KB test file to `/sdcard/` and read the u24 reply, then see `vivehub-map-import.md` §4. Note: the automatic safety check stopped earlier Claude sessions while they wrote this sender (see section 9). Do not retry blindly; tell the owner if it stops again.
-11. **GUI, packaging, ARM64 builds, auto room detection.** Later milestones.
-12. **Open housekeeping.** Read the VIVE EULA reverse-engineering clause before publishing derived work beyond names, ids and layouts. The PC's C: drive was full (0 GiB free) during the live checks; ask the owner before any heavy export.
+- **CLOUD** = the cloud Claude threads. Owns everything that needs no hardware: Linux pose daemon and driver, pipe-protocol features (calibration offset, battery, buttons, haptics), code for pairing/status and settings/power, CI, packaging, the multiplatform app shell, docs.
+- **PC** = the agent on the owner's PC. Owns everything that needs the PC or the trackers: map import and the 8053 transfer work, live hardware tests of each feature, Windows build and run checks, log collection.
+
+**Claim or release a task by editing the Owner/Status columns below in a PR** (one small PR per change, title `handoff: claim T<n>` or `release T<n>`), so the two sides never collide. Do not start a task whose Status is `claimed` by the other side. Statuses: `open`, `claimed (who, date)`, `done (PR)`.
+Hardware steps additionally need the owner's approval (section 7).
+
+| # | Owner | Status | Task | HW |
+|---|---|---|---|---|
+| T1 | CLOUD | open | Decode `file_pack_info`: schema of the 502-byte JSON from log extracts and strings. New `docs/re/file-pack-info.md`. Done when every field is named and tagged and signatures/checksums are identified. | no |
+| T2 | PC | open | Passive capture on 8053: stop HTC's `ViveTrackerServer.exe`, run `python/tools/vut_ft_listen.py`, let a tracker connect, record the first frames; match ports 8053/9527/9005 to roles. Files: extend `vut_ft_listen.py`, new note. Never sends. Done when ports are matched and frames documented. | yes |
+| T3 | PC | open | Multi-map test: build a second map without clearing the first, standby, re-export with `-getmap`, compare `general.db`. Done when a note says whether two maps coexist. Decides the room design. | yes |
+| T4 | CLOUD | open | Room store (no HW): per-room layout (name, host serial, origin, calibration), parse `Calibration.json` and `Map_main` times, synthetic tests. New `python/` package. Never commit real maps. | no |
+| T5 | CLOUD | open | Pose protocol v3 in daemon + C++ client: `DEVICE`, `BATTERY`, `BUTTONS`, `EVENT`, `HAPTIC`, `HELLO` (see `driver-pipes.md` §8), with shared fixtures and CI. Done when both parsers pass the fixtures. | no |
+| T6 | CLOUD | open | Calibration offset (daemon-side transform, per room) and a Space-Calibrator-style math module with tests. | no (needs T9 to verify live) |
+| T7 | CLOUD | open | Pairing/status library from `pairing-and-status.md` §8 and settings library (`python/vut_settings` extended: auto-sleep, power, camera rate), written against a mock dongle/tracker with tests. | no |
+| T8 | PC | open | Live validation of T7 and pairing/status: USB capture (`usbmon`/Wireshark USBPcap) of pair, unpair, cancel, power-off; TCP capture while changing each setting in HTC's Hub; report differences. Factory reset last, on a spare tracker. | yes |
+| T9 | PC | open | Windows run checks: build the SteamVR driver and daemon on Windows, run the cross-language test, load the driver in SteamVR with one and two trackers. | yes |
+| T10 | CLOUD | open | Windows transport and build: named-pipe transport beside the Unix socket, Windows CMake build, `openvrpaths.vrpath` registration, CI on a Windows runner. | no |
+| T11 | PC | open | Pose capture to close `driver-pipes.md` §9 item 1: pipe proxy or hook on the running server with one and two trackers; log pose records. | yes |
+| T12 | CLOUD | open | Packaging and app shell: single entry point (`vut` CLI/daemon), PyInstaller config, Linux x86-64/ARM64/Windows build matrix in CI, GUI skeleton (pair, status, rooms). | no |
+| T13 | PC | open | Map import sender, last: needs T1 and T2 answers; spare tracker with a backed-up map. First step is a 1 KB file to `/sdcard/` and reading the u24 reply (`vivehub-map-import.md` §4). Earlier sessions were stopped by the automatic safety check here (section 9): if it happens, tell the owner, do not retry blindly. | yes |
+| T14 | CLOUD | open | Docs and housekeeping: keep this file and the roadmap current, README refresh, read the VIVE EULA reverse-engineering clause and record the outcome before publishing beyond names/ids/layouts. | no |
+| T15 | PC | open | Collect logs on request (`hdlog.tgz`, server/driver logs) and keep `%USERPROFILE%\Documents\VIVE-map-backups` current; check free disk on C: first (it was full). | yes |
+
+Suggested order: T1, T2, T3 and T5 first (they unblock the rest), then T7/T8, T4/T6, T10/T9, T12, T13 last.
 
 ## 7. How to work with the owner
 
