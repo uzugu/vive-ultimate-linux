@@ -17,3 +17,6 @@ steamvr_driver/build/
 steamvr_driver/stage/
 python/pose_daemon/.venv/
 vendor/
+
+# Local tracker captures may contain private room images.
+vut-ft-capture*.bin

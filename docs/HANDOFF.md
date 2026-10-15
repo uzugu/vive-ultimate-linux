@@ -96,8 +96,13 @@ Hardware steps additionally need the owner's approval (section 7).
 
 | # | Owner | Status | Task | HW |
 |---|---|---|---|---|
+<<<<<<< HEAD
 | T1 | PC | claimed (PC Codex, 2026-10-15) | Decode `file_pack_info`: schema of the 502-byte JSON from log extracts and strings. Partial local audit: [file-pack-info.md](re/file-pack-info.md), aggregate scanner `python/tools/vut_pack_evidence.py`. Existing backup has no metadata body or logged JSON keys; signing is unconfirmed. Needs a metadata body or tracker-side serializer/parser. Done when every field is named and tagged and signatures/checksums are identified. | logs only |
 | T2 | PC | claimed (PC Codex, 2026-10-15) | Passive capture on 8053: stop HTC's `ViveTrackerServer.exe`, run `python/tools/vut_ft_listen.py`, let a tracker connect, record the first frames; match ports 8053/9527/9005 to roles. Files: extend `vut_ft_listen.py`, new note. Never sends. Done when ports are matched and frames documented. | yes |
+=======
+| T1 | PC | open | Decode `file_pack_info`: schema of the 502-byte JSON from log extracts and strings. New `docs/re/file-pack-info.md`. Done when every field is named and tagged and signatures/checksums are identified. | logs only |
+| T2 | PC | claimed (PC Codex, 2026-10-15) | Passive capture on 8053: stop HTC's `ViveTrackerServer.exe`, run `python/tools/vut_ft_listen.py`, let a tracker connect, record the first frames; match ports 8053/9527/9005 to roles. Preparation: bounded listener and offline replay, [passive-capture.md](passive-capture.md); synthetic loopback tests only, actual capture pending approval. Never sends. Done when ports are matched and frames documented. | yes |
+>>>>>>> fe17e02 (Prepare bounded passive tracker capture and offline replay)
 | T3 | PC | open | Multi-map test: build a second map without clearing the first, standby, re-export with `-getmap`, compare `general.db`. Done when a note says whether two maps coexist. Decides the room design. | yes |
 | T4 | CLOUD | done (PR #18) | `python/vut_roomstore` + `vut room`: per-room calibration, switching rewrites the driver calibration file, map files kept private (0700, refused inside a git work tree). See `docs/roomstore.md`. Not done: parsing real HTC `Calibration.json`/`Map_main` (PC agent, needs real files) and the wireless import/export (T1). | no |
 | T5 | CLOUD | mostly done (PRs #9, #14, protocol-meta PR) | Pose protocol in daemon + C++ client: `POSE`, `BATTERY`, `BUTTONS`, `HAPTIC`, `HELLO`, `DEVICE`, `EVENT` with shared fixtures and CI (`protocol/pose-v1.md`). Not done: battery/buttons/haptic from the `pyvut` source (needs T11/T8 to find where the bytes are). | no |
