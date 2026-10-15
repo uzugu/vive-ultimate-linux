@@ -101,6 +101,25 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(ButtonState, kinds)
 
 
+    async def test_haptic_from_client_reaches_source(self) -> None:
+        source = MockPoseSource(tracker_count=1)
+        server = PoseServer(self.path, source, hz=200)
+        await server.start()
+        try:
+            reader, writer = await asyncio.open_unix_connection(self.path)
+            writer.write(b"garbage\nHAPTIC 1 mock-0 0.1 160 1\nHAPTIC 1 mock-0 99 160 1\nHAPTIC 1 mock-0 0.2 100 0.5\n")
+            await writer.drain()
+            for _ in range(100):
+                if len(source.haptics) >= 2:
+                    break
+                await asyncio.sleep(0.02)
+            writer.close()
+            await writer.wait_closed()
+        finally:
+            await server.stop()
+        self.assertEqual([h.duration_s for h in source.haptics], [0.1, 0.2])  # bad lines dropped
+
+
 class FakeRawPose:
     tracker_index = 1
     mac = "AA BB"

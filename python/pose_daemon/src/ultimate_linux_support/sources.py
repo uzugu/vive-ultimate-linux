@@ -6,7 +6,7 @@ import threading
 import time
 from dataclasses import replace
 
-from .models import BUTTON_TRIGGER, BatteryStatus, ButtonState, TrackerPose
+from .models import BUTTON_TRIGGER, BatteryStatus, ButtonState, HapticPulse, TrackerPose
 
 
 class PoseSource(abc.ABC):
@@ -26,11 +26,16 @@ class PoseSource(abc.ABC):
         """Latest battery and button state per tracker; sources without any return nothing."""
         return []
 
+    async def haptic(self, pulse: HapticPulse) -> bool:
+        """Vibrate a tracker. Returns False when the source cannot (the default)."""
+        return False
+
 
 class MockPoseSource(PoseSource):
     def __init__(self, tracker_count: int = 3) -> None:
         self._tracker_count = tracker_count
         self._start = time.monotonic()
+        self.haptics: list[HapticPulse] = []
 
     async def start(self) -> None:
         return None
@@ -70,6 +75,10 @@ class MockPoseSource(PoseSource):
 
         return poses
 
+
+    async def haptic(self, pulse: HapticPulse) -> bool:
+        self.haptics.append(pulse)
+        return True
 
     async def sample_status(self) -> list[BatteryStatus | ButtonState]:
         t = time.monotonic() - self._start

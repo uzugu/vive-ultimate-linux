@@ -71,6 +71,7 @@ void DeviceProvider::RunFrame()
         }
     };
     pose_client_.Poll(handlers);
+    ForwardHapticEvents();
 
     if (was_connected && !pose_client_.IsConnected())
     {
@@ -129,6 +130,27 @@ UltimateTrackerDevice *DeviceProvider::EnsureDeviceForSerial(const std::string &
     Logf("registered tracker device %s", serial.c_str());
     devices_.emplace(serial, std::move(device));
     return device_ptr;
+}
+
+void DeviceProvider::ForwardHapticEvents()
+{
+    vr::VREvent_t event {};
+    while (vr::VRServerDriverHost()->PollNextEvent(&event, sizeof(event)))
+    {
+        if (event.eventType != vr::VREvent_Input_HapticVibration)
+        {
+            continue;
+        }
+        const auto &haptic = event.data.hapticVibration;
+        for (const auto &[serial, device] : devices_)
+        {
+            if (device->OwnsHaptic(haptic.containerHandle, haptic.componentHandle))
+            {
+                pose_client_.SendHaptic({serial, haptic.fDurationSeconds, haptic.fFrequency, haptic.fAmplitude});
+                break;
+            }
+        }
+    }
 }
 
 void DeviceProvider::MarkAllDisconnected()

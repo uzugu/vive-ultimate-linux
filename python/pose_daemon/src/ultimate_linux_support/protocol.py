@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import math
 
-from .models import BUTTON_ALL, BatteryStatus, ButtonState, TrackerPose
+from .models import BUTTON_ALL, BatteryStatus, ButtonState, HapticPulse, TrackerPose
 
 
 PROTOCOL_VERSION = 2
@@ -139,3 +139,26 @@ def battery_from_peripheral_byte(p1: int) -> tuple[int, bool] | None:
     if p1 & 0x80:
         return None
     return min(100, (p1 & 0x3F) * 2), bool(p1 & 0x40)
+
+
+MAX_HAPTIC_DURATION_S = 10.0
+MAX_HAPTIC_FREQUENCY_HZ = 1000.0
+
+
+def encode_haptic_line(pulse: HapticPulse) -> bytes:
+    return (
+        f"HAPTIC 1 {pulse.serial} {pulse.duration_s:.4f} {pulse.frequency_hz:.2f} {pulse.amplitude:.4f}\n"
+    ).encode("utf-8")
+
+
+def decode_haptic_line(line: str) -> HapticPulse:
+    parts = line.strip().split(" ")
+    if len(parts) != 6 or parts[0] != "HAPTIC" or parts[1] != "1":
+        raise ValueError("malformed HAPTIC line")
+    duration, frequency, amplitude = float(parts[3]), float(parts[4]), float(parts[5])
+    if not all(math.isfinite(v) for v in (duration, frequency, amplitude)):
+        raise ValueError("non-finite HAPTIC value")
+    if not (0.0 <= duration <= MAX_HAPTIC_DURATION_S and 0.0 <= frequency <= MAX_HAPTIC_FREQUENCY_HZ
+            and 0.0 <= amplitude <= 1.0):
+        raise ValueError("HAPTIC value out of range")
+    return HapticPulse(serial=parts[2], duration_s=duration, frequency_hz=frequency, amplitude=amplitude)

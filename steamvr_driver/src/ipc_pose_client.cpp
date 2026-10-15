@@ -3,6 +3,7 @@
 #include "driver_log.hpp"
 
 #include <cerrno>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -224,6 +225,34 @@ bool IpcPoseClient::ParsePoseLine(const std::string &line, TrackedPose &out_pose
     }
 
     return true;
+}
+
+bool IpcPoseClient::FormatHapticLine(const HapticPulse &pulse, std::string &out_line)
+{
+    if (pulse.serial.empty() || pulse.serial.find_first_of(" \t\r\n") != std::string::npos ||
+        !std::isfinite(pulse.duration_s) || !std::isfinite(pulse.frequency_hz) || !std::isfinite(pulse.amplitude))
+    {
+        return false;
+    }
+    const double duration = std::fmin(std::fmax(pulse.duration_s, 0.0), 10.0);
+    const double frequency = std::fmin(std::fmax(pulse.frequency_hz, 0.0), 1000.0);
+    const double amplitude = std::fmin(std::fmax(pulse.amplitude, 0.0), 1.0);
+    char buffer[64];
+    std::snprintf(buffer, sizeof(buffer), " %.4f %.2f %.4f\n", duration, frequency, amplitude);
+    out_line = "HAPTIC 1 " + pulse.serial + buffer;
+    return true;
+}
+
+bool IpcPoseClient::SendHaptic(const HapticPulse &pulse)
+{
+    std::string line;
+    if (!IsConnected() || !FormatHapticLine(pulse, line))
+    {
+        return false;
+    }
+    // MSG_NOSIGNAL: a vanished daemon must not kill vrserver with SIGPIPE.
+    const ssize_t sent = ::send(socket_fd_, line.data(), line.size(), MSG_NOSIGNAL | MSG_DONTWAIT);
+    return sent == static_cast<ssize_t>(line.size());
 }
 
 bool IpcPoseClient::ParseBatteryLine(const std::string &line, BatteryStatus &out)

@@ -31,6 +31,7 @@ vr::EVRInitError UltimateTrackerDevice::Activate(std::uint32_t object_id)
     {
         vr::VRDriverInput()->CreateBooleanComponent(property_container_, kButtonPaths[i], &button_handles_[i]);
     }
+    vr::VRDriverInput()->CreateHapticComponent(property_container_, "/output/haptic", &haptic_handle_);
     PublishBattery();
     PublishButtons();
 
@@ -47,6 +48,7 @@ void UltimateTrackerDevice::Deactivate()
     {
         handle = vr::k_ulInvalidInputComponentHandle;
     }
+    haptic_handle_ = vr::k_ulInvalidInputComponentHandle;
 }
 
 void UltimateTrackerDevice::EnterStandby() {}
@@ -122,6 +124,12 @@ bool UltimateTrackerDevice::IsPoseUsable(const TrackedPose &pose)
     const bool has_nonzero_position = std::abs(pose.position_m.x) > epsilon || std::abs(pose.position_m.y) > epsilon ||
                                       std::abs(pose.position_m.z) > epsilon;
     return has_nonzero_position;
+}
+
+bool UltimateTrackerDevice::OwnsHaptic(std::uint64_t container_handle, std::uint64_t component_handle) const
+{
+    return property_container_ != vr::k_ulInvalidPropertyContainer && container_handle == property_container_ &&
+           component_handle == haptic_handle_;
 }
 
 void UltimateTrackerDevice::UpdateBattery(const BatteryStatus &battery)
