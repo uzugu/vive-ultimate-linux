@@ -23,8 +23,8 @@ jobs:
       - name: Tool and research-helper tests
         run: |
           pip install pytest
-          PYTHONPATH=python/vut_settings:python/htc_pipe_codec/src:python/vut_dongle:python/vut_roomstore \
-            python -m pytest -q tests python/vut_settings/tests python/htc_pipe_codec/tests python/vut_dongle/tests python/vut_roomstore/tests
+          PYTHONPATH=python/vut_settings:python/htc_pipe_codec/src:python/vut_dongle:python/vut_roomstore:python/vut_app:python/pose_daemon/src \
+            python -m pytest -q tests python/vut_settings/tests python/htc_pipe_codec/tests python/vut_dongle/tests python/vut_roomstore/tests python/vut_app/tests
 
   driver:
     runs-on: ubuntu-latest
@@ -86,3 +86,37 @@ jobs:
           cmake -S steamvr_driver -B build/driver -DOPENVR_SDK_PATH="$RUNNER_TEMP/openvr"
           cmake --build build/driver --config Release
           test -f build/driver/stage/ultimate_tracker_linux/bin/win64/driver_ultimate_tracker_linux.dll
+
+  package:
+    needs: [python]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, name: linux-x86_64}
+          - {os: ubuntu-24.04-arm, name: linux-arm64}
+          - {os: windows-latest, name: windows-x86_64}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install pyinstaller -e python/pose_daemon -e python/vut_roomstore -e python/vut_app
+      - name: Build single-file executable
+        run: packaging/build.sh
+      - name: Smoke test
+        run: |
+          exe=dist/vut; [ -f dist/vut.exe ] && exe=dist/vut.exe
+          "$exe" version
+          "$exe" --help
+          "$exe" room --root "$RUNNER_TEMP/rooms" list
+          "$exe" daemon --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vut-${{ matrix.name }}
+          path: dist/vut*
