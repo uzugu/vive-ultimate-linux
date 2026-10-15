@@ -77,6 +77,24 @@ So the likely import is **not** the VBP `autosave0` route. It is to behave like 
 - The tracker also uploads its own `file_pack_info_<n>_0.json` (217 bytes) and `pubkey.pem` (426 bytes, a PEM public key) to the host's `ed/` folder, in the same boot.
 - This exchange is the identity step (pack info plus key). The map files are not in that log window; step 4 looks for them.
 
+### 3a.2 The map pack itself (PC step 4: two host-to-client map transfers, 26 September and 14 October)
+
+A client receives a map as **four files, in this order**, each pulled by file index from the host's port 8053 and written under `/data/lambda/<host slot>/general_map/` (here slot `0`):
+
+| Step | File (`<N>` = pack number, `_8` = sender id) | Size seen (14 Oct) | Size seen (26 Sep) |
+|---|---|---|---|
+| 1 | `file_pack_info_<N>_8.json` | 502 B | 502 B |
+| 2 | `<N>_8_general.db` (registry) | 1,585,152 B | 1,208,320 B |
+| 3 | `<N>_8_map_<id>.db` (the map) | 17,510,400 B | 13,754,368 B |
+| 4 | `<N>_8_kf_<id>.db` (keyframe images) | 46,260,224 B | 36,114,432 B |
+
+- The three databases are **the same files we exported** (`general.db`, `map_95.db`, `kf_95.db`), renamed with the `<N>_8_` prefix. The sizes in the pack are smaller than the later export because the tracker kept adding keyframes before it saved.
+- **Trigger and state machine** (control link): the client gets `P64:3` (command 3, `RESET_MAP`), answers `P61:1,0:3,0:6,3:0,0` (first file 0, host map 0, map state 3, transmission ready 0) and then `P61:0,1` (ready). Before the pack the identity exchange from 3a.1 has run. After the four files the client reports `P61:3,1` (received host map) and `P61:5,1` (map state 1, "exists"), about a minute after the pack-info exchange.
+- The `file_pack_info` JSON is the **only unknown**: 502 bytes, which must list the three databases (names, sizes, probably checksums), and may carry a signature checked against the sender's public key. Its content is not in any log.
+- Older packs on the tracker are deleted (`FilePackManager::RemoveFile`) once loaded.
+
+So the import recipe is now concrete except for the pack-info schema: be a host, announce the files, serve the four files with message 22/23 on 8053 under `/data/lambda/<n>/general_map/`, and let the tracker's own loader take them. What is missing is how to get a valid `file_pack_info` and whether it must be signed.
+
 ## 3b. Two obstacles found in the tracker logs (not in the PC binaries)
 
 - **Signed packs.** On every boot a client logs `/data/lambda/8/ed/file_pack_info_<n>_0.json` and stores the sending tracker's `/data/.ssl/pubkey.pem` as `<n>_0_pubkey.pem`
