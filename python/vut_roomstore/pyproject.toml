@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vut-roomstore"
+version = "0.1.0"
+description = "Per-room settings store for VIVE Ultimate Trackers: calibration per room, switch rooms, keep map files private"
+requires-python = ">=3.10"
+
+[project.scripts]
+vut-room = "vut_roomstore.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["vut_roomstore*"]
