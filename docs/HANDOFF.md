@@ -78,7 +78,7 @@ Source: tracker logs, [vivehub-map-import.md](re/vivehub-map-import.md) §3a/3b 
 - Control link strings: host sends ack `FK<n>`, tracker answers `ft_download: filename=<n>` and connects to `<host>:8053` to fetch file index `<n>`. State acks `P61:<key>,<value>` (`P61:0,1` ready, `1,1` first file, `2,1` host key, `3,1` host map received, `5,1` map exists). Reset trigger `P64:3`.
 - Frames are 0x80 bytes with magic `0xB9D7`. Download family: u21 hello, **u22 header** (size, mtu 1048576, output path chosen by the sender), data, **u23 trailer** (CRC-32, poly `0xEDB88320`), u24 status. Upload family u11 to u14 is tracker to host. HTC's PC library confines itself to `/sdcard/`; whether a tracker accepts other paths from a PC peer is untested.
 - **Pack order** into `/data/lambda/<host slot>/general_map/`: (1) `file_pack_info_<N>_8.json` (**502 bytes**), (2) `<N>_8_general.db`, (3) `<N>_8_map_<id>.db`, (4) `<N>_8_kf_<id>.db`. The three databases are the exported files renamed.
-- Identity step first: each side sends `file_pack_info_<n>_<m>.json` (~217/219 B) and `pubkey.pem` (426 B) into `/data/lambda/<dev>/ed/`. Packs appear to be signed or checked against that key: a forged pack may be rejected.
+- Identity step first: each side sends `file_pack_info_<n>_<m>.json` (~217/219 B) and `pubkey.pem` (426 B) into `/data/lambda/<dev>/ed/`. Key exchange alone does not establish pack signing or signature verification; see [file-pack-info.md](re/file-pack-info.md). PC-peer acceptance remains untested.
 - Separate candidate: HTC's VBP "Map Import" (`persist.vbp.map_*` + a file `autosave0`, ASCII command `FD`+`autosave0`, then messages 22/23 to `/sdcard/`). Static analysis only; `autosave0` format unknown.
 
 **Unknown, and decisive:** the 502-byte `file_pack_info` format and whether it is signed; whether a PC peer can be accepted as host.
@@ -96,7 +96,7 @@ Hardware steps additionally need the owner's approval (section 7).
 
 | # | Owner | Status | Task | HW |
 |---|---|---|---|---|
-| T1 | PC | claimed (PC Codex, 2026-10-15) | Decode `file_pack_info`: schema of the 502-byte JSON from log extracts and strings. New `docs/re/file-pack-info.md`. Done when every field is named and tagged and signatures/checksums are identified. | logs only |
+| T1 | PC | claimed (PC Codex, 2026-10-15) | Decode `file_pack_info`: schema of the 502-byte JSON from log extracts and strings. Partial local audit: [file-pack-info.md](re/file-pack-info.md), aggregate scanner `python/tools/vut_pack_evidence.py`. Existing backup has no metadata body or logged JSON keys; signing is unconfirmed. Needs a metadata body or tracker-side serializer/parser. Done when every field is named and tagged and signatures/checksums are identified. | logs only |
 | T2 | PC | open | Passive capture on 8053: stop HTC's `ViveTrackerServer.exe`, run `python/tools/vut_ft_listen.py`, let a tracker connect, record the first frames; match ports 8053/9527/9005 to roles. Files: extend `vut_ft_listen.py`, new note. Never sends. Done when ports are matched and frames documented. | yes |
 | T3 | PC | open | Multi-map test: build a second map without clearing the first, standby, re-export with `-getmap`, compare `general.db`. Done when a note says whether two maps coexist. Decides the room design. | yes |
 | T4 | CLOUD | open | Room store (no HW): per-room layout (name, host serial, origin, calibration), parse `Calibration.json` and `Map_main` times, synthetic tests. New `python/` package. Never commit real maps. | no |
