@@ -1,0 +1,9 @@
+[project]
+name = "vut-settings"
+version = "0.1.0"
+description = "Clean-room builders for VIVE Ultimate Tracker settings and power commands (see docs/re/settings-power.md)"
+requires-python = ">=3.10"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
