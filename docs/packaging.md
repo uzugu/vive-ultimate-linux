@@ -8,6 +8,7 @@
 | `vut pose-dump`, `vut inspect`, `vut capture` | the matching daemon helpers |
 | `vut calibrate` | calibration fit |
 | `vut room ...` | room store (`vut-room`, see `docs/roomstore.md`) |
+| `vut map ...` | map building: `plan`, `replay`, `quality` (see `docs/mapbuild.md`) |
 | `vut doctor` | shows endpoint and checks whether the daemon answers (read-only) |
 
 Arguments after the subcommand go to that tool unchanged (`vut daemon --help`).
@@ -15,7 +16,7 @@ Arguments after the subcommand go to that tool unchanged (`vut daemon --help`).
 ## Single-file build
 
 ```
-pip install pyinstaller -e python/pose_daemon -e python/vut_roomstore -e python/vut_app
+pip install pyinstaller -e python/pose_daemon -e python/vut_roomstore -e python/vut_mapbuild -e python/vut_app
 packaging/build.sh        # writes dist/vut (dist/vut.exe on Windows)
 ```
 
@@ -32,6 +33,7 @@ CI builds it for Linux x86-64, Linux ARM64 and Windows x86-64 and uploads each a
 `vut gui` opens a small Tk window (Tk ships with Python on Windows and macOS; on Debian/Ubuntu install `python3-tk`). Tabs:
 
 - **Status**: live trackers from the daemon (state, tracking label, battery, buttons, position), plus the daemon's `HELLO` and last `EVENT`. Reconnects by itself when the daemon restarts.
+- **Map**: map-building progress and buttons; no transport to the trackers yet, see `docs/mapbuild.md`.
 - **Rooms**: the room store (`docs/roomstore.md`); "Use selected room" rewrites the driver's calibration file.
 - **Pair**: read-only placeholder. Pairing needs dongle commands that have not been verified on hardware (HANDOFF T2/T3).
 

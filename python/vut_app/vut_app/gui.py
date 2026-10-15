@@ -1,4 +1,4 @@
-"""`vut gui`: a small Tk window with Status, Rooms and Pair tabs. All logic lives in gui_model.py."""
+"""`vut gui`: a small Tk window with Status, Rooms, Map and Pair tabs. All logic lives in gui_model.py."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import sys
 from collections.abc import Sequence
 
 from .gui_model import LiveState, RoomsModel, StreamWorker, button_names
+from .map_model import STEPS, MapModel
 
 PAIR_TEXT = (
     "Pairing sends HTC dongle commands (pair, clear pairing) and is not wired up yet.\n\n"
@@ -16,7 +17,7 @@ PAIR_TEXT = (
 )
 
 
-def build(root, state: LiveState, rooms: RoomsModel):  # type: ignore[no-untyped-def]
+def build(root, state: LiveState, rooms: RoomsModel, mapper: MapModel | None = None):  # type: ignore[no-untyped-def]
     """Create the widgets on `root` (a Tk instance). Returns a `refresh()` callable."""
     import tkinter as tk
     from tkinter import ttk
@@ -66,6 +67,50 @@ def build(root, state: LiveState, rooms: RoomsModel):  # type: ignore[no-untyped
     ttk.Label(rooms_tab, textvariable=room_msg).pack(anchor="w", padx=6, pady=6)
     reload_rooms()
 
+    # -- Map ---------------------------------------------------------------------------------------------
+    map_tab = ttk.Frame(notebook)
+    notebook.add(map_tab, text="Map")
+    mapper = mapper or MapModel()
+    steps_var = tk.StringVar(value="")
+    phase_var = tk.StringVar(value="")
+    hint_var = tk.StringVar(value="")
+    quality_var = tk.StringVar(value=mapper.quality_text())
+    ttk.Label(map_tab, text="Build a tracking map for a new room. The host tracker scans; the others copy the map over their Wi-Fi.",
+              wraplength=640, justify="left").pack(anchor="w", padx=6, pady=(6, 2))
+    ttk.Label(map_tab, textvariable=steps_var).pack(anchor="w", padx=6, pady=2)
+    bar = ttk.Progressbar(map_tab, maximum=1.0, length=420)
+    bar.pack(anchor="w", padx=6, pady=2)
+    ttk.Label(map_tab, textvariable=phase_var).pack(anchor="w", padx=6)
+    ttk.Label(map_tab, textvariable=hint_var, wraplength=640, justify="left").pack(anchor="w", padx=6, pady=2)
+    ttk.Label(map_tab, textvariable=quality_var).pack(anchor="w", padx=6, pady=2)
+    host_row = ttk.Frame(map_tab)
+    host_row.pack(anchor="w", padx=6, pady=4)
+    ttk.Label(host_row, text="Host tracker slot:").pack(side="left")
+    host_slot = tk.Spinbox(host_row, from_=0, to=4, width=3)
+    host_slot.pack(side="left", padx=4)
+    buttons = ttk.Frame(map_tab)
+    buttons.pack(anchor="w", padx=6, pady=4)
+    start_btn = ttk.Button(buttons, text="Start map")
+    finish_btn = ttk.Button(buttons, text="Finish and save")
+    cancel_btn = ttk.Button(buttons, text="Cancel")
+    for b in (start_btn, finish_btn, cancel_btn):
+        b.pack(side="left", padx=2)
+    start_btn.configure(command=lambda: mapper.start(int(host_slot.get() or 0)))
+    finish_btn.configure(command=mapper.finish)
+    cancel_btn.configure(command=mapper.cancel)
+
+    def refresh_map() -> None:
+        mapper.tick()
+        v = mapper.view()
+        steps_var.set("  >  ".join(f"[{n}]" if i == v.step else n for i, n in enumerate(STEPS)) if v.step >= 0 else "  >  ".join(STEPS))
+        bar["value"] = v.fraction
+        extra = f"  (time {v.elapsed}" + (f", moving too fast {v.warnings}x" if v.warnings else "") + ")" if v.elapsed else ""
+        phase_var.set(v.message + extra + (f"   waiting for trackers: {v.pending}" if v.pending else ""))
+        hint_var.set(v.hint)
+        quality_var.set(mapper.quality_text())
+        for button, enabled in ((start_btn, v.can_start), (finish_btn, v.can_finish), (cancel_btn, v.can_cancel)):
+            button.state(["!disabled"] if enabled else ["disabled"])
+
     # -- Pair --------------------------------------------------------------------------------------------
     pair_tab = ttk.Frame(notebook)
     notebook.add(pair_tab, text="Pair")
@@ -73,6 +118,7 @@ def build(root, state: LiveState, rooms: RoomsModel):  # type: ignore[no-untyped
     ttk.Button(pair_tab, text="Pair a tracker", state="disabled").pack(anchor="w", padx=6)
 
     def refresh() -> None:
+        refresh_map()
         connected, summary, trackers = state.snapshot()
         banner.set(("connected - " if connected else "not connected - ") + summary if summary else
                    ("connected" if connected else "not connected"))
@@ -92,6 +138,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--endpoint", default=None, help="daemon endpoint (default: $ULTIMATE_TRACKER_SOCKET_PATH or platform default)")
     parser.add_argument("--rooms-root", default=None, help="room store directory")
     parser.add_argument("--calibration-file", default=None, help="driver calibration file to rewrite when switching rooms")
+    parser.add_argument("--map-calibration", default=None, help="Calibration.json with map_setup (shows the last map's quality)")
     args = parser.parse_args(argv)
 
     try:
@@ -110,7 +157,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     root = tk.Tk()
     root.title("VIVE Ultimate Tracker")
     root.geometry("760x380")
-    refresh = build(root, state, rooms)
+    refresh = build(root, state, rooms, MapModel(calibration_file=args.map_calibration))
 
     def tick() -> None:
         refresh()
