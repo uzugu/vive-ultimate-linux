@@ -8,6 +8,7 @@ from collections.abc import Iterable, Sequence
 
 from .records import parse_log_line
 from .session import MapBuildSession, Phase
+from .textio import read_lines
 
 
 def replay(lines: Iterable[str]) -> tuple[MapBuildSession, list[tuple[float, Phase, str]]]:
@@ -32,8 +33,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="vut map replay", description="Replay a ViveTrackerServer log through the map-build model.")
     parser.add_argument("log", help="path to a ViveTrackerServer log")
     args = parser.parse_args(argv)
-    with open(args.log, encoding="utf-8", errors="replace") as f:
-        session, changes = replay(f)
+    try:
+        session, changes = replay(read_lines(args.log))
+    except OSError as exc:
+        print(f"cannot read {args.log}: {exc}", file=sys.stderr)
+        return 2
     for t, phase, message in changes:
         print(f"{t:7.1f}s  {phase.value:<9} {message}")
     p = session.progress()
