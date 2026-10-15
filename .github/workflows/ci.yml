@@ -25,6 +25,12 @@ jobs:
           pip install pytest
           PYTHONPATH=python/vut_settings:python/htc_pipe_codec/src:python/vut_dongle:python/vut_roomstore:python/vut_app:python/pose_daemon/src \
             python -m pytest -q tests python/vut_settings/tests python/htc_pipe_codec/tests python/vut_dongle/tests python/vut_roomstore/tests python/vut_app/tests
+      - name: GUI window smoke test (virtual display)
+        if: matrix.python-version == '3.13'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+          PYTHONPATH=python/vut_roomstore:python/vut_app:python/pose_daemon/src \
+            xvfb-run -a python -m pytest -q -rs python/vut_app/tests/test_gui_model.py
 
   driver:
     runs-on: ubuntu-latest

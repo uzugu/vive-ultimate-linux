@@ -25,4 +25,14 @@ CI builds it for Linux x86-64, Linux ARM64 and Windows x86-64 and uploads each a
 
 - `pyvut` (the real tracker source) is an external dependency and is not bundled; the frozen build runs the mock source only until packaging of the hardware source is settled.
 - The SteamVR driver binary is built separately (`steamvr_driver`, `docs/windows.md`).
-- No GUI yet (pair/status/rooms screens are the next piece).
+- The GUI is a skeleton (see `vut gui` below); pairing is not wired.
+
+## `vut gui`
+
+`vut gui` opens a small Tk window (Tk ships with Python on Windows and macOS; on Debian/Ubuntu install `python3-tk`). Tabs:
+
+- **Status**: live trackers from the daemon (state, tracking label, battery, buttons, position), plus the daemon's `HELLO` and last `EVENT`. Reconnects by itself when the daemon restarts.
+- **Rooms**: the room store (`docs/roomstore.md`); "Use selected room" rewrites the driver's calibration file.
+- **Pair**: read-only placeholder. Pairing needs dongle commands that have not been verified on hardware (HANDOFF T2/T3).
+
+The logic is in `vut_app/gui_model.py` (headless, unit-tested with a real daemon over TCP); `gui.py` is only the Tk layout. CI runs a window smoke test under a virtual display. Nothing here has been looked at by a person yet, so expect layout rough edges.
