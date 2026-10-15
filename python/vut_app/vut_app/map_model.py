@@ -21,6 +21,7 @@ from vut_mapbuild import (
     read_calibration_map_setup,
 )
 from vut_mapbuild.replay import replay
+from vut_mapbuild.textio import read_lines
 
 STEPS = ("Start", "Scan", "Review", "Save", "Share")
 _STEP_OF = {
@@ -119,8 +120,7 @@ class MapModel:
     def replay_log(self, path: str) -> str:
         """Show how a recorded ViveTrackerServer log would have looked in this tab."""
         try:
-            with open(path, encoding="utf-8", errors="replace") as f:
-                session, changes = replay(f)
+            session, changes = replay(read_lines(path))
         except OSError as exc:
             self.error = str(exc)
             return self.error

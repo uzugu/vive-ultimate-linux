@@ -69,6 +69,19 @@ class MapModelTests(unittest.TestCase):
         self.assertEqual(m.view().phase, "done")
         self.assertIn("No such file", m.replay_log("/nonexistent/x.log"))
 
+    def test_replay_of_utf16_log(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "ViveTrackerServer.txt"
+            f.write_bytes(b"\xff\xfe" + FIXTURE.read_text(encoding="utf-8").encode("utf-16-le"))
+            m = MapModel()
+            self.assertIn("final: done", m.replay_log(str(f)))
+            self.assertEqual(self.run_cli_replay(f), 0)
+
+    @staticmethod
+    def run_cli_replay(path) -> int:  # type: ignore[no-untyped-def]
+        with redirect_stdout(io.StringIO()):
+            return map_cli.main(["replay", str(path)])
+
     def test_quality_text(self) -> None:
         self.assertEqual(MapModel().quality_text(), "No map recorded yet.")
         with tempfile.TemporaryDirectory() as tmp:

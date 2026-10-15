@@ -168,3 +168,29 @@ def test_quality_judge_with_real_values_and_thresholds(tmp_path):
     f.write_text(json.dumps({"map_setup": {"last_map_creation_time": 1791997907, "map_quality": [85, 80, 85, 80, 75, 70, 80, 70]}}))
     created, q = read_calibration_map_setup(f)
     assert created == 1791997907 and q.verdict == "ok"
+
+
+# -- HTC writes its logs as UTF-16 LE with a BOM (found on a real PC) ---------------------------------------------
+def test_replay_reads_utf16_bom_and_utf8_bom_logs(tmp_path):
+    from vut_mapbuild.textio import detect_encoding, read_lines
+
+    text = FIXTURE.read_text(encoding="utf-8")
+    plain = replay(text.splitlines())[1]
+    for name, data in (
+        ("utf16.txt", b"\xff\xfe" + text.encode("utf-16-le")),
+        ("utf16be.txt", b"\xfe\xff" + text.encode("utf-16-be")),
+        ("utf8bom.txt", b"\xef\xbb\xbf" + text.encode("utf-8")),
+    ):
+        f = tmp_path / name
+        f.write_bytes(data)
+        lines = read_lines(f)
+        assert lines[0].startswith("[2026-10-14 19:10:06.699"), name
+        got = replay(lines)[1]
+        assert [(p, m) for _, p, m in got] == [(p, m) for _, p, m in plain], name
+    assert detect_encoding(b"\xff\xfe[\x00") == "utf-16" and detect_encoding(b"[202") == "utf-8"
+
+
+def test_calibration_json_utf16(tmp_path):
+    f = tmp_path / "Calibration.json"
+    f.write_bytes(b"\xff\xfe" + json.dumps({"map_setup": {"map_quality": [85, 80]}}).encode("utf-16-le"))
+    assert read_calibration_map_setup(f)[1].verdict == "ok"
