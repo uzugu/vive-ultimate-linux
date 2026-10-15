@@ -6,12 +6,13 @@ import pathlib
 import time
 
 from .protocol import pose_to_json_dict
+from .endpoint import default_endpoint_spec
 from .socket_client import PoseStreamClient
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Capture raw tracker-space poses from the daemon socket to JSONL.")
-    parser.add_argument("--socket-path", default="/tmp/ultimate-tracker-linux.sock")
+    parser.add_argument("--socket-path", default=default_endpoint_spec())
     parser.add_argument("--output", required=True, help="Output JSONL file path.")
     parser.add_argument("--serial", default=None, help="Only record a specific tracker serial.")
     parser.add_argument("--duration", type=float, default=10.0, help="Capture duration in seconds.")

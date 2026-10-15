@@ -13,6 +13,9 @@ option(UTS_BUILD_TESTS "Build the OpenVR-free unit tests" OFF)
 # Pose socket client and parser: no OpenVR dependency, shared by the driver and the tests.
 add_library(uts_ipc STATIC src/ipc_pose_client.cpp src/calibration.cpp)
 target_include_directories(uts_ipc PUBLIC include)
+if(WIN32)
+    target_link_libraries(uts_ipc PUBLIC ws2_32)
+endif()
 
 if(UTS_BUILD_TESTS)
     enable_testing()
@@ -41,9 +44,15 @@ find_path(OPENVR_INCLUDE_DIR
     NO_DEFAULT_PATH
 )
 
+if(WIN32)
+    set(OPENVR_PLATFORM win64)
+else()
+    set(OPENVR_PLATFORM linux64)
+endif()
+
 find_library(OPENVR_API_LIB
     NAMES openvr_api libopenvr_api.a
-    PATHS "${OPENVR_SDK_PATH}/lib/linux64"
+    PATHS "${OPENVR_SDK_PATH}/lib/${OPENVR_PLATFORM}"
     NO_DEFAULT_PATH
 )
 
@@ -52,7 +61,7 @@ if(NOT OPENVR_INCLUDE_DIR)
 endif()
 
 if(NOT OPENVR_API_LIB)
-    message(FATAL_ERROR "Failed to find the OpenVR library under ${OPENVR_SDK_PATH}/lib/linux64")
+    message(FATAL_ERROR "Failed to find the OpenVR library under ${OPENVR_SDK_PATH}/lib/${OPENVR_PLATFORM}")
 endif()
 
 add_library(driver_${DRIVER_NAME} SHARED
@@ -77,7 +86,7 @@ set_target_properties(driver_${DRIVER_NAME} PROPERTIES
 )
 
 set(STAGE_ROOT "${CMAKE_BINARY_DIR}/stage/${DRIVER_NAME}")
-set(STAGE_BIN_DIR "${STAGE_ROOT}/bin/linux64")
+set(STAGE_BIN_DIR "${STAGE_ROOT}/bin/${OPENVR_PLATFORM}")
 
 add_custom_command(TARGET driver_${DRIVER_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${STAGE_BIN_DIR}"

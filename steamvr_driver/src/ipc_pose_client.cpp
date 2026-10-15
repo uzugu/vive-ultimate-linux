@@ -7,11 +7,22 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <sstream>
 #include <string>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#endif
 
 namespace uts
 {
@@ -19,7 +30,111 @@ namespace uts
 namespace
 {
 constexpr std::size_t kMaxBufferedBytes = 1 << 20;
+
+#ifdef _WIN32
+using NativeSocket = SOCKET;
+const NativeSocket kInvalid = INVALID_SOCKET;
+int LastError() { return WSAGetLastError(); }
+bool WouldBlock(int e) { return e == WSAEWOULDBLOCK; }
+void CloseSocket(NativeSocket s) { ::closesocket(s); }
+bool SetNonBlocking(NativeSocket s)
+{
+    u_long mode = 1;
+    return ::ioctlsocket(s, FIONBIO, &mode) == 0;
+}
+std::string ErrorText(int e) { return "winsock error " + std::to_string(e); }
+void EnsureWinsock()
+{
+    static const bool started = [] {
+        WSADATA data;
+        return ::WSAStartup(MAKEWORD(2, 2), &data) == 0;
+    }();
+    (void)started;
+}
+constexpr int kSendFlags = 0;
+#else
+using NativeSocket = int;
+const NativeSocket kInvalid = -1;
+int LastError() { return errno; }
+bool WouldBlock(int e) { return e == EAGAIN || e == EWOULDBLOCK; }
+void CloseSocket(NativeSocket s) { ::close(s); }
+bool SetNonBlocking(NativeSocket s)
+{
+    const int flags = ::fcntl(s, F_GETFL, 0);
+    return flags >= 0 && ::fcntl(s, F_SETFL, flags | O_NONBLOCK) == 0;
+}
+std::string ErrorText(int e) { return std::strerror(e); }
+void EnsureWinsock() {}
+// MSG_NOSIGNAL: a vanished daemon must not kill vrserver with SIGPIPE.
+constexpr int kSendFlags = MSG_NOSIGNAL;
+#endif
+
+NativeSocket ToNative(std::intptr_t fd) { return static_cast<NativeSocket>(fd); }
+
+bool ParsePort(const std::string &text, int &port)
+{
+    if (text.empty() || text.size() > 5 || text.find_first_not_of("0123456789") != std::string::npos)
+    {
+        return false;
+    }
+    port = std::atoi(text.c_str());
+    return port >= 1 && port <= 65535;
+}
+
+bool IsLoopback(const std::string &host)
+{
+    in_addr v4 {};
+    if (::inet_pton(AF_INET, host.c_str(), &v4) == 1)
+    {
+        return (ntohl(v4.s_addr) >> 24) == 127;
+    }
+    return host == "::1";
+}
 } // namespace
+
+bool ParseEndpoint(const std::string &spec, Endpoint &out)
+{
+    Endpoint parsed;
+    if (spec.compare(0, 4, "tcp:") == 0)
+    {
+        const std::string rest = spec.substr(4);
+        const std::size_t colon = rest.rfind(':');
+        if (colon == std::string::npos || colon == 0)
+        {
+            return false;
+        }
+        parsed.kind = Endpoint::Kind::Tcp;
+        parsed.host = rest.substr(0, colon);
+        if (!ParsePort(rest.substr(colon + 1), parsed.port) || !IsLoopback(parsed.host))
+        {
+            return false;
+        }
+    }
+    else
+    {
+        parsed.kind = Endpoint::Kind::Unix;
+        parsed.path = spec.compare(0, 5, "unix:") == 0 ? spec.substr(5) : spec;
+        if (parsed.path.empty())
+        {
+            return false;
+        }
+    }
+    out = parsed;
+    return true;
+}
+
+std::string DefaultEndpointSpec()
+{
+    if (const char *env = std::getenv("ULTIMATE_TRACKER_SOCKET_PATH"); env != nullptr && env[0] != '\0')
+    {
+        return env;
+    }
+#ifdef _WIN32
+    return "tcp:127.0.0.1:38450";
+#else
+    return "/tmp/ultimate-tracker-linux.sock";
+#endif
+}
 
 IpcPoseClient::IpcPoseClient(std::string socket_path) : socket_path_(std::move(socket_path)) {}
 
@@ -51,25 +166,75 @@ bool IpcPoseClient::Connect()
         return true;
     }
 
-    socket_fd_ = ::socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    if (socket_fd_ < 0)
+    Endpoint endpoint;
+    if (!ParseEndpoint(socket_path_, endpoint))
     {
-        Logf("failed to create Unix socket: %s", std::strerror(errno));
+        Logf("invalid pose endpoint '%s'", socket_path_.c_str());
+        return false;
+    }
+    EnsureWinsock();
+
+    NativeSocket fd = kInvalid;
+    int rc = -1;
+    if (endpoint.kind == Endpoint::Kind::Tcp)
+    {
+        const bool v6 = endpoint.host.find(':') != std::string::npos;
+        fd = ::socket(v6 ? AF_INET6 : AF_INET, SOCK_STREAM, 0);
+        if (fd == kInvalid)
+        {
+            Logf("failed to create TCP socket: %s", ErrorText(LastError()).c_str());
+            return false;
+        }
+        // Loopback connects finish (or are refused) immediately, so connect blocking and switch afterwards.
+        if (v6)
+        {
+            sockaddr_in6 addr {};
+            addr.sin6_family = AF_INET6;
+            addr.sin6_port = htons(static_cast<unsigned short>(endpoint.port));
+            ::inet_pton(AF_INET6, endpoint.host.c_str(), &addr.sin6_addr);
+            rc = ::connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
+        }
+        else
+        {
+            sockaddr_in addr {};
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(static_cast<unsigned short>(endpoint.port));
+            ::inet_pton(AF_INET, endpoint.host.c_str(), &addr.sin_addr);
+            rc = ::connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
+        }
+        if (rc == 0)
+        {
+            const int one = 1;
+            ::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&one), sizeof(one));
+        }
+    }
+    else
+    {
+#ifdef _WIN32
+        Logf("unix endpoints are not supported on Windows: %s", socket_path_.c_str());
+        return false;
+#else
+        fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+        if (fd == kInvalid)
+        {
+            Logf("failed to create Unix socket: %s", ErrorText(LastError()).c_str());
+            return false;
+        }
+        sockaddr_un addr {};
+        addr.sun_family = AF_UNIX;
+        std::snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", endpoint.path.c_str());
+        rc = ::connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
+#endif
+    }
+
+    if (rc != 0 || !SetNonBlocking(fd))
+    {
+        Logf("failed to connect to %s: %s", socket_path_.c_str(), ErrorText(LastError()).c_str());
+        CloseSocket(fd);
         return false;
     }
 
-    sockaddr_un addr {};
-    addr.sun_family = AF_UNIX;
-    std::snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socket_path_.c_str());
-
-    const int rc = ::connect(socket_fd_, reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
-    if (rc < 0 && errno != EINPROGRESS)
-    {
-        Logf("failed to connect to %s: %s", socket_path_.c_str(), std::strerror(errno));
-        Disconnect();
-        return false;
-    }
-
+    socket_fd_ = static_cast<std::intptr_t>(fd);
     return true;
 }
 
@@ -77,7 +242,7 @@ void IpcPoseClient::Disconnect()
 {
     if (socket_fd_ >= 0)
     {
-        ::close(socket_fd_);
+        CloseSocket(ToNative(socket_fd_));
         socket_fd_ = -1;
     }
     read_buffer_.clear();
@@ -105,7 +270,7 @@ void IpcPoseClient::Poll(const Handlers &handlers)
     char buffer[4096];
     while (true)
     {
-        const ssize_t nread = ::read(socket_fd_, buffer, sizeof(buffer));
+        const int nread = static_cast<int>(::recv(ToNative(socket_fd_), buffer, sizeof(buffer), 0));
         if (nread > 0)
         {
             read_buffer_.append(buffer, static_cast<std::size_t>(nread));
@@ -125,9 +290,10 @@ void IpcPoseClient::Poll(const Handlers &handlers)
             return;
         }
 
-        if (errno != EAGAIN && errno != EWOULDBLOCK)
+        const int error = LastError();
+        if (!WouldBlock(error))
         {
-            Logf("read error on pose socket: %s", std::strerror(errno));
+            Logf("read error on pose socket: %s", ErrorText(error).c_str());
             Disconnect();
             return;
         }
@@ -250,9 +416,9 @@ bool IpcPoseClient::SendHaptic(const HapticPulse &pulse)
     {
         return false;
     }
-    // MSG_NOSIGNAL: a vanished daemon must not kill vrserver with SIGPIPE.
-    const ssize_t sent = ::send(socket_fd_, line.data(), line.size(), MSG_NOSIGNAL | MSG_DONTWAIT);
-    return sent == static_cast<ssize_t>(line.size());
+    // The socket is non-blocking, so a full buffer drops the pulse instead of stalling vrserver.
+    const auto sent = ::send(ToNative(socket_fd_), line.data(), static_cast<int>(line.size()), kSendFlags);
+    return sent == static_cast<decltype(sent)>(line.size());
 }
 
 bool IpcPoseClient::ParseBatteryLine(const std::string &line, BatteryStatus &out)

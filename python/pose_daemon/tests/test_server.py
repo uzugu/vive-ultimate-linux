@@ -1,9 +1,12 @@
 import asyncio
 import os
+import socket
+import sys
 import tempfile
 import unittest
 from dataclasses import replace
 
+from ultimate_linux_support.endpoint import parse_endpoint
 from ultimate_linux_support.models import TrackerPose
 from ultimate_linux_support.models import BatteryStatus, ButtonState
 from ultimate_linux_support.protocol import decode_message, decode_pose_line
@@ -28,16 +31,28 @@ class FlakySource(PoseSource):
         return await MockPoseSource(1).sample()
 
 
+async def open_connection(spec: str):
+    endpoint = parse_endpoint(spec)
+    if endpoint.kind == "unix":
+        return await asyncio.open_unix_connection(endpoint.path)
+    return await asyncio.open_connection(endpoint.host, endpoint.port)
+
+
 class ServerTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
-        self.path = os.path.join(self._tmp.name, "pose.sock")
+        if sys.platform == "win32":  # no Unix sockets: loopback TCP, the Windows default transport
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 0))
+                self.path = f"tcp:127.0.0.1:{probe.getsockname()[1]}"
+        else:
+            self.path = os.path.join(self._tmp.name, "pose.sock")
 
     async def asyncTearDown(self) -> None:
         self._tmp.cleanup()
 
     async def _read_poses(self, count: int) -> list[TrackerPose]:
-        reader, writer = await asyncio.open_unix_connection(self.path)
+        reader, writer = await open_connection(self.path)
         try:
             poses = []
             while len(poses) < count:
@@ -58,7 +73,8 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             await server.stop()
         self.assertEqual({p.serial for p in poses}, {"mock-0", "mock-1"})
         self.assertTrue(all(p.status == "ok" for p in poses))
-        self.assertFalse(os.path.exists(self.path))
+        if sys.platform != "win32":
+            self.assertFalse(os.path.exists(self.path))
 
     async def test_survives_source_error(self) -> None:
         server = PoseServer(self.path, FlakySource(), hz=200)
@@ -73,7 +89,7 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         server = PoseServer(self.path, MockPoseSource(1), hz=200)
         await server.start()
         try:
-            _, w1 = await asyncio.open_unix_connection(self.path)
+            _, w1 = await open_connection(self.path)
             w1.close()
             poses = await self._read_poses(2)
         finally:
@@ -86,7 +102,7 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         await server.start()
         try:
             await asyncio.sleep(0.05)  # let the first status broadcast populate the cache
-            reader, writer = await asyncio.open_unix_connection(self.path)
+            reader, writer = await open_connection(self.path)
             kinds = set()
             for _ in range(20):
                 line = await asyncio.wait_for(reader.readline(), timeout=5)
@@ -106,7 +122,7 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         server = PoseServer(self.path, source, hz=200)
         await server.start()
         try:
-            reader, writer = await asyncio.open_unix_connection(self.path)
+            reader, writer = await open_connection(self.path)
             writer.write(b"garbage\nHAPTIC 1 mock-0 0.1 160 1\nHAPTIC 1 mock-0 99 160 1\nHAPTIC 1 mock-0 0.2 100 0.5\n")
             await writer.drain()
             for _ in range(100):

@@ -39,7 +39,7 @@ What is not done yet:
 - [docs/prior-art-survey.md](docs/prior-art-survey.md): existing Ultimate Tracker reverse-engineering projects and HTC's Linux beta
 - [protocol/pose-v1.md](protocol/pose-v1.md): local IPC contract between the daemon and the SteamVR driver
 - [python/pose_daemon](python/pose_daemon): Python daemon and source adapters
-- [steamvr_driver](steamvr_driver): Linux OpenVR driver skeleton
+- [steamvr_driver](steamvr_driver): OpenVR driver (Linux; the Windows build uses loopback TCP, see [docs/windows.md](docs/windows.md))
 
 ## External dependencies
 

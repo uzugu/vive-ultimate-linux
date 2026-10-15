@@ -4,9 +4,11 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
-#include <sys/stat.h>
+#include <system_error>
 
 namespace uts
 {
@@ -96,8 +98,10 @@ const Calibration &CalibrationFile::current() const
 
 bool CalibrationFile::Refresh()
 {
-    struct stat st {};
-    if (::stat(path_.c_str(), &st) != 0)
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const auto mtime = fs::last_write_time(path_, ec);
+    if (ec)
     {
         if (last_mtime_ns_ != -1)
         {
@@ -107,7 +111,8 @@ bool CalibrationFile::Refresh()
         return false;
     }
 
-    const long long mtime_ns = static_cast<long long>(st.st_mtim.tv_sec) * 1000000000LL + st.st_mtim.tv_nsec;
+    const long long mtime_ns =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(mtime.time_since_epoch()).count();
     if (mtime_ns == last_mtime_ns_)
     {
         return false;
@@ -144,6 +149,12 @@ std::string DefaultCalibrationPath()
     {
         return std::string(xdg) + "/ultimate-tracker/calibration.txt";
     }
+#ifdef _WIN32
+    if (const char *appdata = std::getenv("APPDATA"); appdata != nullptr && appdata[0] != '\0')
+    {
+        return std::string(appdata) + "\\ultimate-tracker\\calibration.txt";
+    }
+#endif
     const char *home = std::getenv("HOME");
     return std::string(home != nullptr ? home : ".") + "/.config/ultimate-tracker/calibration.txt";
 }

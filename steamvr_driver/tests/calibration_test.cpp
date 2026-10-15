@@ -7,7 +7,8 @@
 #include <string>
 #include <thread>
 #include <chrono>
-#include <unistd.h>
+#include <filesystem>
+#include <system_error>
 
 namespace
 {
@@ -86,9 +87,10 @@ void WriteFile(const std::string &path, const std::string &content)
 
 void TestFileReload()
 {
-    char dir[] = "/tmp/uts-cal-XXXXXX";
-    CHECK(::mkdtemp(dir) != nullptr);
-    const std::string path = std::string(dir) + "/calibration.txt";
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / ("uts-cal-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    CHECK(fs::create_directories(dir));
+    const std::string path = (dir / "calibration.txt").string();
 
     uts::CalibrationFile file(path);
     CHECK(!file.Refresh()); // missing: identity
@@ -109,8 +111,8 @@ void TestFileReload()
     CHECK(file.Refresh());
     CHECK(Near(file.current().translation_m.x, 9.0));
 
-    ::unlink(path.c_str());
-    ::rmdir(dir);
+    std::error_code ec;
+    fs::remove_all(dir, ec);
 }
 
 } // namespace

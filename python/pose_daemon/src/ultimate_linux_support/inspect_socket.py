@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 
 from .models import TrackerPose
+from .endpoint import default_endpoint_spec
 from .socket_client import PoseStreamClient
 
 
@@ -18,7 +19,7 @@ class TrackerStats:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Show a live summary of trackers coming from the daemon socket.")
-    parser.add_argument("--socket-path", default="/tmp/ultimate-tracker-linux.sock")
+    parser.add_argument("--socket-path", default=default_endpoint_spec())
     parser.add_argument("--refresh-every", type=int, default=30, help="Print a summary every N received samples.")
     return parser.parse_args()
 
