@@ -8,7 +8,7 @@ namespace uts
 {
 
 DeviceProvider::DeviceProvider(std::string socket_path)
-    : socket_path_(std::move(socket_path)), pose_client_(socket_path_)
+    : socket_path_(std::move(socket_path)), pose_client_(socket_path_), calibration_(DefaultCalibrationPath())
 {
 }
 
@@ -16,7 +16,8 @@ vr::EVRInitError DeviceProvider::Init(vr::IVRDriverContext *driver_context)
 {
     VR_INIT_SERVER_DRIVER_CONTEXT(driver_context);
     ReloadSettings();
-    Logf("device provider initialized using socket %s", pose_client_.SocketPath().c_str());
+    Logf("device provider initialized using socket %s, calibration file %s", pose_client_.SocketPath().c_str(),
+         calibration_.path().c_str());
     return vr::VRInitError_None;
 }
 
@@ -40,8 +41,16 @@ void DeviceProvider::RunFrame()
         ReloadSettings();
     }
 
+    calibration_.Refresh();
+
     const bool was_connected = pose_client_.IsConnected();
-    pose_client_.Poll([this](const TrackedPose &pose) {
+    pose_client_.Poll([this](const TrackedPose &raw_pose) {
+        TrackedPose pose = raw_pose;
+        // Judge usability on the raw pose: a calibration offset must not make an all-zero pose look live.
+        if (UltimateTrackerDevice::IsPoseUsable(pose))
+        {
+            calibration_.current().Apply(pose);
+        }
         auto *device = EnsureDeviceForSerial(pose.serial);
         if (device != nullptr)
         {

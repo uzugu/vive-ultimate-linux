@@ -17,6 +17,7 @@ ultimate-linux-support-daemon = "ultimate_linux_support.daemon:main"
 ultimate-linux-support-pose-dump = "ultimate_linux_support.pose_dump:main"
 ultimate-linux-support-inspect-socket = "ultimate_linux_support.inspect_socket:main"
 ultimate-linux-support-capture = "ultimate_linux_support.capture:main"
+ultimate-linux-support-calibrate = "ultimate_linux_support.calibration:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

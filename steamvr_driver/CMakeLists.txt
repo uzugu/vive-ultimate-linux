@@ -11,7 +11,7 @@ option(UTS_BUILD_DRIVER "Build the SteamVR driver (needs the OpenVR SDK)" ON)
 option(UTS_BUILD_TESTS "Build the OpenVR-free unit tests" OFF)
 
 # Pose socket client and parser: no OpenVR dependency, shared by the driver and the tests.
-add_library(uts_ipc STATIC src/ipc_pose_client.cpp)
+add_library(uts_ipc STATIC src/ipc_pose_client.cpp src/calibration.cpp)
 target_include_directories(uts_ipc PUBLIC include)
 
 if(UTS_BUILD_TESTS)
@@ -21,6 +21,10 @@ if(UTS_BUILD_TESTS)
     target_compile_definitions(ipc_pose_client_test PRIVATE
         UTS_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../protocol/fixtures")
     add_test(NAME ipc_pose_client COMMAND ipc_pose_client_test)
+
+    add_executable(calibration_test tests/calibration_test.cpp)
+    target_link_libraries(calibration_test PRIVATE uts_ipc)
+    add_test(NAME calibration COMMAND calibration_test)
 endif()
 
 if(NOT UTS_BUILD_DRIVER)
