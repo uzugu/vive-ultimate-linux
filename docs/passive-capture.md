@@ -1,17 +1,18 @@
 # T2: bounded passive capture preparation
 
-Status: tooling tested with synthetic loopback traffic on Windows; **tracker
-capture not run**. T2 remains incomplete until connections/frames and port roles
-are observed. Host-only inspection on 2026-10-15 confirmed `ViveTrackerServer`
+Status: tooling tested with synthetic loopback traffic on Windows; one approved
+60-second live passive capture completed with zero connections and bytes. T2
+remains incomplete until connections/frames and port roles are observed. Host-only inspection on 2026-10-15 confirmed `ViveTrackerServer`
 listening on TCP 3680, 8053, 9005, 9527 and 15680. Owning a port does not establish
 its protocol role. UDP was not inspected in this check.
 
 ## Approval boundary
 
 [HANDOFF section 7](HANDOFF.md#7-how-to-work-with-the-owner) requires the owner to
-approve each tracker/dongle step. The following is a reviewable plan, not a record
-of commands already run. Stopping HTC's server interrupts tracking. No process
-has been stopped for this preparation. Do not silently add reboot, reset, pairing,
+approve each tracker/dongle step. The commands below describe the original approved plan. The observed result and
+recovery deviation are recorded at the end of this note; a new attempt needs
+separate approval. Stopping HTC's server interrupts tracking. The initial tooling preparation stopped no processes; the later approved capture
+and recovery did stop the host server, as recorded below. Do not silently add reboot, reset, pairing,
 transfer-mode commands, firewall rules or an active sender to the test.
 
 Use one powered tracker for an unambiguous capture. A shared capture file appends
@@ -69,3 +70,33 @@ evidence. This is not a sender, a proxy, or a metadata extractor.
 For public findings record only counts, frame types, sizes, protocol roles with
 confidence labels, and whether the capture ended early. Keep raw logs and bytes
 local; neither a filename nor an ignore rule substitutes for reviewing a commit.
+
+
+## Approved live result (2026-10-15)
+
+**[observed on PC]** The owner approved stopping HTC's tracker server, a 60-second
+passive listen on TCP 8053, and reopening VIVE Hub. The listener bound successfully,
+ran to its deadline, and exited with status 0. Result: **zero connections, zero
+received bytes, zero frame lines**, and no traceback. Raw capture, console output,
+and a numeric summary remain in a timestamped folder under the owner's local
+`Documents/VIVE-map-backups/`; no raw files or identifiers are committed.
+
+**[observed on PC]** The tracker-server process start time fell during the capture
+window, showing that HTC relaunched it before our listener finished. After the
+capture and launcher invocation, HTC owned TCP 3680, 9005, 9527 and 15680, while
+8053 had no listener. With our listener closed, one additional host-server restart
+and launcher invocation restored **all five original TCP listeners**, including
+8053. No tracker/dongle commands, active file transfers, firewall changes, pairing,
+reset or reboot were performed. Live tracking itself was not independently
+verified; recovery is established only at process/listening-port level.
+
+**[inferred]** HTC's early relaunch may have attempted to bind 8053 while our
+listener owned it. No direct bind-error log was found in the inspected recent
+log tails, so that mechanism is not proven. The empty capture does not prove a
+tracker was powered/connected or that its control channel requested a transfer.
+
+A further attempt needs an approved plan that accounts for HTC's automatic
+relaunch and identifies how the tracker is expected to initiate the connection.
+Do not repeat this attempt blindly or count T2 as done: no frame layouts or new
+port roles were learned. The concurrent HTC process also means this result
+cannot be treated as a capture with HTC's server absent for the whole window.
