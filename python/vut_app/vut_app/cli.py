@@ -49,12 +49,19 @@ def _room() -> Callable[[], object]:
     return main
 
 
+def _gui() -> Callable[[], object]:
+    from .gui import main
+
+    return main
+
+
 COMMANDS: dict[str, tuple[Callable[[], Callable[[], object]], str]] = {
     "daemon": (_daemon, "run the pose daemon (serves poses to the SteamVR driver)"),
     "pose-dump": (_pose_dump, "print poses from the daemon"),
     "inspect": (_inspect, "inspect the daemon socket"),
     "capture": (_capture, "record a pose capture"),
     "calibrate": (_calibrate, "fit the SteamVR calibration from captures"),
+    "gui": (_gui, "open the status / rooms / pairing window (needs Tk)"),
     "room": (_room, "per-room calibration store (list/new/use/...)"),
 }
 
