@@ -3,19 +3,23 @@ from __future__ import annotations
 import socket
 from collections.abc import Iterator
 
+from .endpoint import parse_endpoint
 from .models import BatteryStatus, ButtonState, TrackerPose
 from .protocol import decode_message
 
 
 class PoseStreamClient:
     def __init__(self, socket_path: str) -> None:
-        self._socket_path = socket_path
+        self._endpoint = parse_endpoint(socket_path)
         self._sock: socket.socket | None = None
         self._reader = None
 
     def __enter__(self) -> "PoseStreamClient":
-        self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self._sock.connect(self._socket_path)
+        if self._endpoint.kind == "unix":
+            self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self._sock.connect(self._endpoint.path)
+        else:
+            self._sock = socket.create_connection((self._endpoint.host, self._endpoint.port))
         self._reader = self._sock.makefile("r", encoding="utf-8", newline="\n")
         return self
 

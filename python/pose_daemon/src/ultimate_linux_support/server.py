@@ -8,6 +8,7 @@ import time
 from collections.abc import Iterable
 
 from .models import TrackerPose
+from .endpoint import parse_endpoint
 from .models import BatteryStatus, ButtonState
 from .protocol import decode_haptic_line, encode_battery_line, encode_buttons_line, encode_pose_line
 from .sources import PoseSource
@@ -26,7 +27,7 @@ MAX_CLIENT_LINE_BYTES = 4096
 
 class PoseServer:
     def __init__(self, socket_path: str, source: PoseSource, hz: float = 90.0) -> None:
-        self._socket_path = socket_path
+        self._endpoint = parse_endpoint(socket_path)
         self._source = source
         self._hz = hz
         self._server: asyncio.AbstractServer | None = None
@@ -38,10 +39,14 @@ class PoseServer:
     async def start(self) -> None:
         await self._source.start()
 
-        with contextlib.suppress(FileNotFoundError):
-            os.unlink(self._socket_path)
-
-        self._server = await asyncio.start_unix_server(self._handle_client, path=self._socket_path)
+        if self._endpoint.kind == "unix":
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(self._endpoint.path)
+            self._server = await asyncio.start_unix_server(self._handle_client, path=self._endpoint.path)
+        else:
+            self._server = await asyncio.start_server(
+                self._handle_client, host=self._endpoint.host, port=self._endpoint.port
+            )
         self._broadcast_task = asyncio.create_task(self._broadcast_loop())
 
     async def stop(self) -> None:
@@ -59,8 +64,9 @@ class PoseServer:
             with contextlib.suppress(Exception):
                 await writer.wait_closed()
 
-        with contextlib.suppress(FileNotFoundError):
-            os.unlink(self._socket_path)
+        if self._endpoint.kind == "unix":
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(self._endpoint.path)
 
         await self._source.stop()
 

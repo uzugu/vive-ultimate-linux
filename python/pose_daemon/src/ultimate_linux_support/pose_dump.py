@@ -4,12 +4,13 @@ import argparse
 from datetime import datetime, timezone
 
 from .protocol import pose_to_json_line
+from .endpoint import default_endpoint_spec
 from .socket_client import PoseStreamClient
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Print parsed pose samples from the local daemon socket.")
-    parser.add_argument("--socket-path", default="/tmp/ultimate-tracker-linux.sock")
+    parser.add_argument("--socket-path", default=default_endpoint_spec())
     parser.add_argument("--serial", default=None, help="Only print a specific tracker serial.")
     parser.add_argument("--limit", type=int, default=0, help="Stop after N matching samples. 0 means no limit.")
     parser.add_argument("--json", action="store_true", help="Print JSON lines instead of a text summary.")

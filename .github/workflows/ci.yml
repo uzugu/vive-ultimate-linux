@@ -53,3 +53,36 @@ jobs:
           cmake -S steamvr_driver -B build/driver -DOPENVR_SDK_PATH="$RUNNER_TEMP/openvr"
           cmake --build build/driver
           test -f build/driver/stage/ultimate_tracker_linux/bin/linux64/driver_ultimate_tracker_linux.so
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install daemon
+        run: pip install -e python/pose_daemon
+      - name: Python unit tests (loopback TCP transport)
+        run: python -m unittest discover -s python/pose_daemon/tests -v
+      - name: Build and run OpenVR-free tests
+        run: |
+          cmake -S steamvr_driver -B build/tests -DUTS_BUILD_DRIVER=OFF -DUTS_BUILD_TESTS=ON
+          cmake --build build/tests --config Release
+          ctest --test-dir build/tests -C Release --output-on-failure
+      - name: Cross-language check (Python daemon -> C++ client over TCP)
+        run: |
+          ultimate-linux-support-daemon --source mock --socket-path tcp:127.0.0.1:38450 &
+          daemon=$!
+          sleep 3
+          UTS_E2E_SOCKET=tcp:127.0.0.1:38450 build/tests/Release/ipc_pose_client_test.exe
+          kill $daemon
+      - name: Build the SteamVR driver against the OpenVR SDK
+        run: |
+          git clone --depth 1 --branch v2.15.6 https://github.com/ValveSoftware/openvr "$RUNNER_TEMP/openvr"
+          cmake -S steamvr_driver -B build/driver -DOPENVR_SDK_PATH="$RUNNER_TEMP/openvr"
+          cmake --build build/driver --config Release
+          test -f build/driver/stage/ultimate_tracker_linux/bin/win64/driver_ultimate_tracker_linux.dll

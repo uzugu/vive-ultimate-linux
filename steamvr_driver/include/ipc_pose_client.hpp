@@ -2,11 +2,32 @@
 
 #include "pose_types.hpp"
 
+#include <cstdint>
 #include <functional>
 #include <string>
 
 namespace uts
 {
+
+// Where the pose daemon listens: `unix:/path` (or a bare path) or `tcp:<loopback-ip>:<port>`.
+// Loopback only, mirroring python/pose_daemon endpoint.py; see protocol/pose-v1.md.
+struct Endpoint
+{
+    enum class Kind
+    {
+        Unix,
+        Tcp
+    };
+    Kind kind = Kind::Unix;
+    std::string path;
+    std::string host;
+    int port = 0;
+};
+
+// Returns false for malformed specs and for tcp hosts that are not loopback addresses.
+bool ParseEndpoint(const std::string &spec, Endpoint &out);
+// $ULTIMATE_TRACKER_SOCKET_PATH, else tcp:127.0.0.1:38450 on Windows and the /tmp Unix socket elsewhere.
+std::string DefaultEndpointSpec();
 
 class IpcPoseClient
 {
@@ -45,7 +66,7 @@ class IpcPoseClient
   private:
 
     std::string socket_path_;
-    int socket_fd_ = -1;
+    std::intptr_t socket_fd_ = -1;
     std::string read_buffer_;
 };
 

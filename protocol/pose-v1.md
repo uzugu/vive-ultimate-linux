@@ -2,11 +2,18 @@
 
 This protocol is the local bridge between the Python pose daemon and the Linux SteamVR driver.
 
-The transport is a Unix domain stream socket.
+The transport is a local stream socket. Endpoints are written as a spec string:
 
-Recommended socket path:
+| Spec | Meaning |
+| --- | --- |
+| `/tmp/ultimate-tracker-linux.sock` or `unix:/path` | Unix domain socket (default on Linux and macOS) |
+| `tcp:127.0.0.1:38450` | loopback TCP (default on Windows, where Unix sockets are not usable from the SteamVR driver) |
 
-`/tmp/ultimate-tracker-linux.sock`
+Rules:
+
+- `tcp:` hosts must be loopback addresses (`127.x.x.x` or `::1`). Both sides refuse anything else, so the pose stream and `HAPTIC` input never leave the machine.
+- The default is read from `ULTIMATE_TRACKER_SOCKET_PATH` (same variable for the daemon and the driver), then falls back to the platform default above.
+- The line format is identical on every endpoint kind.
 
 ## Design goals
 
