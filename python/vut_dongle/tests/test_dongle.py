@@ -115,3 +115,40 @@ class AsciiCommandTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HidioTests(unittest.TestCase):
+    def test_feature_writer_prepends_report_id(self):
+        from vut_dongle import feature_writer
+
+        sent = []
+
+        class Dev:
+            def send_feature_report(self, data):
+                sent.append(bytes(data))
+                return len(data)
+
+        feature_writer(Dev())(b"\x18" + bytes(63))
+        self.assertEqual(len(sent[0]), 65)
+        self.assertEqual(sent[0][:2], b"\x00\x18")
+
+    def test_write_failure_raises(self):
+        from vut_dongle import feature_writer
+
+        class Dev:
+            def send_feature_report(self, data):
+                return -1
+
+        with self.assertRaises(OSError):
+            feature_writer(Dev())(bytes(64))
+
+    def test_open_without_hidapi_is_reported(self):
+        from vut_dongle import DongleUnavailable, open_dongle
+
+        class Mod:
+            class device:
+                def open(self, v, p):
+                    raise OSError("no device")
+
+        with self.assertRaises(DongleUnavailable):
+            open_dongle(Mod)

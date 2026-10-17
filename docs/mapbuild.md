@@ -61,7 +61,7 @@ Status query `1e 01` and RF behaviour `1d 09 ...` match [pairing-and-status.md](
 Code: `vut_dongle.ascii_command` (tested against these bytes) and `vut_mapbuild.DongleLink`.
 
 **Still open:** where the 5-byte tracker id comes from and how it maps to a slot (the status reply or the 0x28 stream probably carries it; the PC session
-has the data), the HID write itself on each OS (hidapi `send_feature_report`), how map status rides in the 0x28/0x29 streams, and the cancel command.
+has the data), the OS-specific behaviour of the HID write (code is in `vut_dongle.hidio`, hidapi `send_feature_report`, untested on hardware), how map status rides in the 0x28/0x29 streams, and the cancel command.
 
 ## 4. What our code provides
 
