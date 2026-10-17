@@ -5,6 +5,7 @@ capture to confirm; see the "Open questions" in that document before trusting a 
 """
 
 from .ascii import CMD_ASCII, MAX_TEXT, TRACKER_ID_SIZE, ascii_command
+from .tracker_report import TrackerReport, find_pressed_tracker, parse_tracker_report
 from .hidio import PRODUCT_ID, VENDOR_ID, DongleUnavailable, feature_writer, open_dongle
 from .packets import (
     BEHAVIOR_CLEAR_PAIRING,
@@ -34,6 +35,9 @@ from .status import (
 )
 
 __all__ = [
+    "TrackerReport",
+    "find_pressed_tracker",
+    "parse_tracker_report",
     "PRODUCT_ID",
     "VENDOR_ID",
     "DongleUnavailable",

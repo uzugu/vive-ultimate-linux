@@ -152,3 +152,36 @@ class HidioTests(unittest.TestCase):
 
         with self.assertRaises(DongleUnavailable):
             open_dongle(Mod)
+
+
+class TrackerReportTests(unittest.TestCase):
+    def _report(self, tracker_id, state):
+        r = bytearray(64)
+        r[0] = 0x28
+        r[4:9] = tracker_id
+        r[13] = state
+        return bytes(r)
+
+    def test_battery_and_button(self):
+        from vut_dongle import parse_tracker_report
+
+        tid = bytes([1, 2, 3, 4, 5])
+        battery = parse_tracker_report(self._report(tid, 8))
+        self.assertEqual((battery.tracker_id, battery.battery_percent, battery.button_pressed), (tid, 16, None))
+        button = parse_tracker_report(self._report(tid, 0x81))
+        self.assertEqual((button.battery_percent, button.button_pressed), (None, True))
+        self.assertFalse(parse_tracker_report(self._report(tid, 0x80)).button_pressed)
+
+    def test_find_pressed_tracker(self):
+        from vut_dongle import find_pressed_tracker
+
+        a, b = bytes([1] * 5), bytes([2] * 5)
+        reports = [self._report(a, 10), self._report(b, 0x81), b"\x1e" + bytes(63)]
+        self.assertEqual(find_pressed_tracker(reports), b)
+        self.assertIsNone(find_pressed_tracker([self._report(a, 10)]))
+
+    def test_rejects_other_reports(self):
+        from vut_dongle import parse_tracker_report
+
+        with self.assertRaises(ValueError):
+            parse_tracker_report(b"\x1e" + bytes(63))

@@ -31,6 +31,25 @@ class MapLiveTests(unittest.TestCase):
 
         self.assertEqual(map_live.main(["--tracker-id", "0102030405", "--country", "DE"], hid_module=NoDev), 1)
 
+    def test_learns_host_from_button(self):
+        class Dev:
+            def __init__(self):
+                self.reports = [b"\x28" + bytes([0] * 3) + bytes([7] * 5) + bytes(4) + bytes([0x81]) + bytes(50)]
+
+            def read(self, size, timeout):
+                return self.reports.pop(0) if self.reports else b""
+
+        said = []
+        self.assertEqual(map_live.learn_host_id(Dev(), said.append), bytes([7] * 5))
+
+    def test_no_press_times_out(self):
+        class Dev:
+            def read(self, size, timeout):
+                return b""
+
+        ticks = iter(range(0, 1000))
+        self.assertIsNone(map_live.learn_host_id(Dev(), lambda _m: None, timeout_s=3, clock=lambda: next(ticks)))
+
 
 if __name__ == "__main__":
     unittest.main()
