@@ -19,8 +19,10 @@ def plan() -> int:
     c = DEFAULT_COMMANDS
     print("Commands a map build sends to the host tracker (none are sent by this command):")
     for name in ("start", "end", "cancel"):
-        print(f"  {name:<7} {' then '.join(getattr(c, name))}   [{c.confidence[name]}]")
-    print(f"  scan    {c.scan_event or '(not known yet: nothing is sent)'}   [{c.confidence['scan_event']}]")
+        commands = ' then '.join(x.replace('{country}', '<country>') for x in getattr(c, name))
+        print(f"  {name:<7} {commands}   [{c.confidence[name]}]")
+    print(f"  scan    {', '.join(c.scan_events)} (stages 0 to 3)   [{c.confidence['scan_events']}]")
+    print("Each command goes to the host tracker as a dongle HID feature report (vut_dongle.ascii_command).")
     print("See docs/mapbuild.md for what is proven and what needs a hardware check.")
     return 0
 

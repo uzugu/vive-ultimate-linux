@@ -4,6 +4,7 @@ Pure functions, no I/O: nothing here talks to hardware. Every layout is read fro
 capture to confirm; see the "Open questions" in that document before trusting a byte.
 """
 
+from .ascii import CMD_ASCII, MAX_TEXT, TRACKER_ID_SIZE, ascii_command
 from .packets import (
     BEHAVIOR_CLEAR_PAIRING,
     BEHAVIOR_FACTORY_RESET,
@@ -32,6 +33,10 @@ from .status import (
 )
 
 __all__ = [
+    "CMD_ASCII",
+    "MAX_TEXT",
+    "TRACKER_ID_SIZE",
+    "ascii_command",
     "BEHAVIOR_CLEAR_PAIRING",
     "BEHAVIOR_FACTORY_RESET",
     "BEHAVIOR_PAIR",

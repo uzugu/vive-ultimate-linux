@@ -136,7 +136,7 @@ class TkSmokeTests(unittest.TestCase):
                 from vut_app.map_model import MapModel
                 from vut_mapbuild import RecordingLink
 
-                mapper = MapModel(RecordingLink())
+                mapper = MapModel(RecordingLink(), country="DE")
                 refresh = build(root, state, RoomsModel(store, f"{tmp}/cal.txt"), mapper)
                 refresh()
                 mapper.start(0)

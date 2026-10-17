@@ -119,12 +119,16 @@ class MapBuildSession:
         self.log: list[str] = []
 
     # -- user actions -------------------------------------------------------------------------------------
-    def start(self, host_slot: int, now: float) -> None:
+    def start(self, host_slot: int, now: float, country: str = "") -> None:
         if self.phase.active:
             raise MapError(f"a map build is already running ({self.phase.value})")
+        try:
+            commands = self._cmd.start_commands(country)
+        except ValueError as exc:
+            raise MapError(str(exc)) from exc
         self._reset(now)
         self.host_slot = host_slot
-        self._send_all(host_slot, self._cmd.start)
+        self._send_all(host_slot, commands)
         self._set(Phase.STARTING, "waiting for the host tracker to start scanning", now)
 
     def notify_scan(self, stage: int, now: float) -> None:
@@ -133,8 +137,8 @@ class MapBuildSession:
             raise MapError(f"cannot notify a scan stage while {self.phase.value}")
         if not 0 <= stage <= 3:
             raise ValueError("scan stage must be 0..3")
-        if self._cmd.scan_event is not None and self.host_slot is not None:
-            self._send_all(self.host_slot, (f"{self._cmd.scan_event}{stage}",))
+        if self.host_slot is not None and stage < len(self._cmd.scan_events):
+            self._send_all(self.host_slot, (self._cmd.scan_events[stage],))
         self.scan_stage = stage
         self.refine_ready = False if stage < 3 else self.refine_ready
         self._now = now

@@ -26,7 +26,7 @@ class Clock:
 
 class MapModelTests(unittest.TestCase):
     def test_default_link_shows_a_clear_error_and_stays_idle(self) -> None:
-        m = MapModel()
+        m = MapModel(country="DE")
         msg = m.start(0)
         self.assertIn("no transport", msg)
         v = m.view()
@@ -37,7 +37,7 @@ class MapModelTests(unittest.TestCase):
 
     def test_walkthrough_buttons_follow_phase(self) -> None:
         clock, link = Clock(), RecordingLink()
-        m = MapModel(link, clock)
+        m = MapModel(link, clock, country="DE")
         m.feed(rec(0, 4, host=True))
         m.start(4)
         v = m.view()
@@ -92,6 +92,11 @@ class MapModelTests(unittest.TestCase):
         self.assertIn("Weak sides: 2", text)
         self.assertEqual(MapModel(calibration_file="/nonexistent.json").quality_text(), "No map recorded yet.")
 
+    def test_start_without_country_explains_why(self) -> None:
+        m = MapModel(RecordingLink())
+        self.assertIn("country", m.start(0))
+        self.assertEqual(m.view().phase, "idle")
+
     def test_steps(self) -> None:
         self.assertEqual(STEPS, ("Start", "Scan", "Review", "Save", "Share"))
 
@@ -106,9 +111,9 @@ class MapCliTests(unittest.TestCase):
     def test_plan_lists_commands_and_confidence(self) -> None:
         code, out, _ = self.run_cli("plan")
         self.assertEqual(code, 0)
-        self.assertIn("FW2 then ATM20", out)
-        self.assertIn("[code]", out)
-        self.assertIn("nothing is sent", out)
+        self.assertIn("FW2 then Wc<country> then ATM20", out)
+        self.assertIn("[capture]", out)
+        self.assertIn("pMS_SC", out)
 
     def test_replay_prints_timeline(self) -> None:
         code, out, _ = self.run_cli("replay", str(FIXTURE))

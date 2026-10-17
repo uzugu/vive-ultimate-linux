@@ -16,7 +16,7 @@ Arguments after the subcommand go to that tool unchanged (`vut daemon --help`).
 ## Single-file build
 
 ```
-pip install pyinstaller -e python/pose_daemon -e python/vut_roomstore -e python/vut_mapbuild -e python/vut_app
+pip install pyinstaller -e python/pose_daemon -e python/vut_roomstore -e python/vut_dongle -e python/vut_mapbuild -e python/vut_app
 packaging/build.sh        # writes dist/vut (dist/vut.exe on Windows)
 ```
 

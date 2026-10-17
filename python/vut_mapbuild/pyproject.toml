@@ -7,6 +7,7 @@ name = "vut-mapbuild"
 version = "0.1.0"
 description = "Map-building (room setup) command layer and progress model for the VIVE Ultimate Tracker; no I/O"
 requires-python = ">=3.10"
+dependencies = []  # uses vut_dongle for the dongle frame (install it alongside; not on PyPI)
 
 [tool.setuptools.packages.find]
 include = ["vut_mapbuild*"]
