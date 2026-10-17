@@ -89,5 +89,6 @@ A new build **replaces the host tracker's map**; there is no restore yet, so the
    tracker is charged; it costs the new map.
 4. *Open.* Find the slot to tracker-id mapping and the map-status carrier in the 0x28/0x29 streams (offline work on the existing capture, no hardware).
 5. *Open, first live run of our code:* start from the Map tab with a real HID write, one tracker, then cancel at once and read `has map`.
+6. *Open, first live run, needs the user's go-ahead:* `vut map live --tracker-id <10 hex digits> --country <CC>` starts a build on the host tracker through the dongle, asks you to press Enter at each scan stage, then sends `ALE`. It is open loop (reads nothing back) and replaces the map on every tracker. The host tracker id still has to come from the dongle (not decoded yet; the USB capture contains it).
 
 Safety: steps 1 to 4 send nothing ourselves. Step 5 sends only `FW2` / `Wc<CC>` / `ATM20` / scan stages / `ALE`, never the file-transfer or import path.

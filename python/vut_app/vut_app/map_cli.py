@@ -3,6 +3,7 @@
   vut map plan                  print the commands a build would send, with how sure we are of each
   vut map replay <server.log>   replay a ViveTrackerServer log through the model (what the Map tab would have shown)
   vut map quality <Calibration.json>
+  vut map live --tracker-id <hex> --country <CC>   REAL: start and finish a build on the host tracker via the dongle
 """
 
 from __future__ import annotations
@@ -37,6 +38,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return plan()
     if cmd == "replay":
         return replay_main(rest)
+    if cmd == "live":
+        from .map_live import main as live_main
+
+        return live_main(rest)
     if cmd == "quality":
         parser = argparse.ArgumentParser(prog="vut map quality")
         parser.add_argument("calibration_json")
