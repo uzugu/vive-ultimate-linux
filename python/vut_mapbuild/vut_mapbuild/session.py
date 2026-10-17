@@ -157,7 +157,8 @@ class MapBuildSession:
             raise MapError(f"nothing to cancel ({self.phase.value})")
         assert self.host_slot is not None
         self._send_all(self.host_slot, self._cmd.cancel)
-        self._set(Phase.CANCELLED, "cancelled", now)
+        note = "" if self._cmd.cancel else " (HTC's Hub sends nothing to the tracker on cancel either, so the host tracker was not told)"
+        self._set(Phase.CANCELLED, "cancelled" + note, now)
 
     # -- inputs -------------------------------------------------------------------------------------------
     def feed(self, event: Event) -> None:

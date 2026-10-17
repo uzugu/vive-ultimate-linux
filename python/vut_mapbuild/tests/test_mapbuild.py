@@ -96,8 +96,10 @@ def test_cancel_and_double_start():
     s, link = started()
     with pytest.raises(MapError):
         s.start(4, 2.0, "DE")
+    sent_before = len(link.sent)
     s.cancel(3.0)
     assert s.phase is Phase.CANCELLED and not s.phase.active
+    assert len(link.sent) == sent_before  # no wire command; never ALE, which would save the map
     with pytest.raises(MapError):
         s.cancel(4.0)
     s.start(4, 10.0, "DE")  # can start again after a cancel

@@ -85,7 +85,8 @@ A new build **replaces the host tracker's map**; there is no restore yet, so the
 2. **Done 2026-10-17.** Passive USB capture of one Hub-built map (section 3). Second build: review at +110.8 s, saving +114.0 s, host `has map` about +5 s,
    but the client (slot 3) had **not** reported a map 4 minutes later, so the model stays in SYNCING (it would time out at 120 s). Whether that client later
    synced is open.
-3. *Open.* Capture a build cancelled mid-scan: the cancel command, and whether the previous map survives. Only after the sync question is settled and the host
+3. *Dropped 2026-10-17.* HTC's cancel sends nothing to the dongle (read from the server code), so there is nothing to capture. Our cancel sends no command; what a tracker does after an abandoned build, and a real cancel (for example back to normal mode), are untested and need hardware.
+   (Old text:) Capture a build cancelled mid-scan: the cancel command, and whether the previous map survives. Only after the sync question is settled and the host
    tracker is charged; it costs the new map.
 4. *Open.* Find the slot to tracker-id mapping and the map-status carrier in the 0x28/0x29 streams (offline work on the existing capture, no hardware).
 5. *Open, first live run of our code:* start from the Map tab with a real HID write, one tracker, then cancel at once and read `has map`.

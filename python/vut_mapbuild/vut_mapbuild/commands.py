@@ -26,12 +26,14 @@ class CommandTable:
     start: tuple[str, ...] = ("FW2", "Wc{country}", "ATM20")
     # End map creation. Capture-verified 2026-10-17 (host reported has map about 5 s later).
     end: tuple[str, ...] = ("ALE",)
-    # No cancelled build has been captured yet (HANDOFF T17 step 3); ending without keeping the result is a guess.
-    cancel: tuple[str, ...] = ("ALE",)
+    # HTC's server "cancel map creation" only logs and replies OK; it sends nothing to the dongle (read from its code,
+    # 2026-10-17). So there is no HTC cancel to copy. `ALE` would SAVE the map, so it must not be used here. A real
+    # cancel for our app (for example switching the host back to normal mode) is untested and needs hardware.
+    cancel: tuple[str, ...] = ()
     # One command per scan stage 0..3 (wizard "Map scan notification, type N"). Capture-verified 2026-10-17.
     scan_events: tuple[str, ...] = ("pMS_SC", "pMS_ILA", "pMS_IHA", "pMS_ES")
     confidence: dict[str, str] = field(
-        default_factory=lambda: {"start": CAPTURE, "end": CAPTURE, "cancel": GUESS, "scan_events": CAPTURE}
+        default_factory=lambda: {"start": CAPTURE, "end": CAPTURE, "cancel": CODE, "scan_events": CAPTURE}
     )
 
     def validate(self) -> None:
