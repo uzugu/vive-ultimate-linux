@@ -65,10 +65,12 @@ class MapModel:
         link: Link | None = None,
         clock: Callable[[], float] = time.monotonic,
         calibration_file: str | None = None,
+        country: str = "",
     ) -> None:
         self._link = link or UnavailableLink()
         self._clock = clock
         self._calibration_file = calibration_file
+        self.country = country
         self.session = MapBuildSession(self._link)
         self.error = ""
         self.quality: QualityReport | None = None
@@ -88,7 +90,7 @@ class MapModel:
         self.error = ""
         try:
             self.session = MapBuildSession(self._link)
-            self.session.start(host_slot, self._clock())
+            self.session.start(host_slot, self._clock(), self.country)
         except (MapError, LinkUnavailable) as exc:
             self.error = str(exc)
             self.session = MapBuildSession(self._link)

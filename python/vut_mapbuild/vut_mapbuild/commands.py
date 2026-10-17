@@ -15,28 +15,37 @@ DONGLE_MAX_COMMAND = 15
 CODE = "code"  # read from HTC's instructions
 STRING = "string"  # string seen in a binary; its role is inferred from the name
 GUESS = "guess"
+CAPTURE = "capture"  # seen in a USB capture of HTC's own software doing it (2026-10-17)
 
 
 @dataclass(frozen=True)
 class CommandTable:
     """What to send for each wizard action. Replace a field to test another hypothesis on hardware."""
 
-    # `TrackerOnDongle::CreateMap`: FW2, set Wi-Fi country code (separate call), ATM20.
-    start: tuple[str, ...] = ("FW2", "ATM20")
-    # `EndCreateMap` has its own command that is not decoded. "ALE" is listed as "end map" in the Linux tracker_server.
+    # `TrackerOnDongle::CreateMap`: FW2, Wi-Fi country code (`Wc` + two letters), ATM20. Capture-verified 2026-10-17.
+    start: tuple[str, ...] = ("FW2", "Wc{country}", "ATM20")
+    # End map creation. Capture-verified 2026-10-17 (host reported has map about 5 s later).
     end: tuple[str, ...] = ("ALE",)
-    # The wizard's cancel handler id is uncertain (driver-pipes.md section 5); ending without keeping the result is a guess.
+    # No cancelled build has been captured yet (HANDOFF T17 step 3); ending without keeping the result is a guess.
     cancel: tuple[str, ...] = ("ALE",)
-    # `SendMapScanEvent` is a separate function that is not decoded; None means "do not send anything".
-    scan_event: str | None = None
+    # One command per scan stage 0..3 (wizard "Map scan notification, type N"). Capture-verified 2026-10-17.
+    scan_events: tuple[str, ...] = ("pMS_SC", "pMS_ILA", "pMS_IHA", "pMS_ES")
     confidence: dict[str, str] = field(
-        default_factory=lambda: {"start": CODE, "end": STRING, "cancel": GUESS, "scan_event": GUESS}
+        default_factory=lambda: {"start": CAPTURE, "end": CAPTURE, "cancel": GUESS, "scan_events": CAPTURE}
     )
 
     def validate(self) -> None:
         for name in ("start", "end", "cancel"):
             for command in getattr(self, name):
-                check_command(command)
+                check_command(command.format(country="US"))
+        for command in self.scan_events:
+            check_command(command)
+
+    def start_commands(self, country: str) -> tuple[str, ...]:
+        """The start sequence with the Wi-Fi country code filled in (two letters, e.g. DE)."""
+        if "{country}" in "".join(self.start) and not (len(country) == 2 and country.isascii() and country.isalpha()):
+            raise ValueError("a two-letter Wi-Fi country code is needed to start a map build")
+        return tuple(check_command(c.format(country=country.upper())) for c in self.start)
 
 
 def check_command(command: str) -> str:

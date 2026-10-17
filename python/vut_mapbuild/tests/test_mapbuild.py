@@ -65,13 +65,13 @@ def started(link=None, **kw):
     s = MapBuildSession(link, **kw)
     s.feed(rec(0, 3, has=True))
     s.feed(rec(0, 4, host=True))
-    s.start(4, 1.0)
+    s.start(4, 1.0, "DE")
     return s, link
 
 
 def test_start_sends_commands_to_host_only():
     s, link = started()
-    assert link.sent == [(4, "FW2"), (4, "ATM20")]
+    assert link.sent == [(4, "FW2"), (4, "WcDE"), (4, "ATM20")]
     assert s.phase is Phase.STARTING and not s.progress().can_finish
 
 
@@ -95,12 +95,12 @@ def test_full_build_flow():
 def test_cancel_and_double_start():
     s, link = started()
     with pytest.raises(MapError):
-        s.start(4, 2.0)
+        s.start(4, 2.0, "DE")
     s.cancel(3.0)
     assert s.phase is Phase.CANCELLED and not s.phase.active
     with pytest.raises(MapError):
         s.cancel(4.0)
-    s.start(4, 10.0)  # can start again after a cancel
+    s.start(4, 10.0, "DE")  # can start again after a cancel
     assert s.phase is Phase.STARTING
 
 
@@ -133,19 +133,41 @@ def test_timeouts_fail_the_build():
 def test_default_link_has_no_transport():
     s = MapBuildSession()
     with pytest.raises(Exception, match="no transport"):
-        s.start(0, 0)
+        s.start(0, 0, "DE")
     assert isinstance(s._link, UnavailableLink)
 
 
-def test_scan_event_command_is_only_sent_when_configured():
+def test_scan_stage_commands_match_the_capture():
     s, link = started()
     s.feed(rec(2, 4, host=True, trk=7, has=False))
-    s.notify_scan(1, 3)
-    assert len(link.sent) == 2  # only the start commands: scan_event is unknown, so nothing is sent
-    s2, link2 = started(commands=CommandTable(scan_event="ASE"))
+    for stage in range(4):
+        s.notify_scan(stage, 3 + stage)
+    assert [c for _, c in link.sent[3:]] == ["pMS_SC", "pMS_ILA", "pMS_IHA", "pMS_ES"]
+    s2, link2 = started(commands=CommandTable(scan_events=()))
     s2.feed(rec(2, 4, host=True, trk=7, has=False))
-    s2.notify_scan(2, 3)
-    assert link2.sent[-1] == (4, "ASE2")
+    s2.notify_scan(1, 3)
+    assert len(link2.sent) == 3  # only the start commands
+
+
+def test_start_needs_a_country_code():
+    s = MapBuildSession(RecordingLink())
+    for bad in ("", "D", "DEU", "1a"):
+        with pytest.raises(MapError, match="country"):
+            s.start(0, 0, bad)
+    assert s.phase is Phase.IDLE
+
+
+def test_dongle_link_frames_match_the_capture():
+    from vut_mapbuild.transport import DongleLink
+
+    sent = []
+    link = DongleLink(sent.append, {4: bytes.fromhex("0102030405")})
+    link.send(4, "ALE")
+    link.send(4, "pMS_ILA")
+    assert sent[0][:15] == bytes.fromhex("180f03230102030405000103414c45") and len(sent[0]) == 64
+    assert sent[1][:19] == bytes.fromhex("181303230102030405000107704d535f494c41")
+    with pytest.raises(KeyError, match="slot 2"):
+        link.send(2, "ALE")
 
 
 # -- commands / quality --------------------------------------------------------------------------------------

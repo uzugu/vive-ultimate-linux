@@ -2,6 +2,7 @@ import struct
 import unittest
 
 from vut_dongle import (
+    ascii_command,
     BEHAVIOR_CLEAR_PAIRING,
     PACKET_SIZE,
     build_rf_behavior,
@@ -80,6 +81,36 @@ class StatusTests(unittest.TestCase):
         self.assertIsNone(decode_peripheral_battery(0x80))
         with self.assertRaises(ValueError):
             decode_peripheral_battery(256)
+
+
+class AsciiCommandTests(unittest.TestCase):
+    """Expected bytes are the masked hex seen in a USB capture of HTC's software (tracker id replaced by 5 x 0xaa)."""
+
+    TID = bytes([0xAA] * 5)
+
+    def test_frames_match_capture(self) -> None:
+        cases = {
+            "ALE": "18 0f 03 23 aa aa aa aa aa 00 01 03 41 4c 45",
+            "FW2": "18 0f 03 23 aa aa aa aa aa 00 01 03 46 57 32",
+            "ATM20": "18 11 03 23 aa aa aa aa aa 00 01 05 41 54 4d 32 30",
+            "pMS_SC": "18 12 03 23 aa aa aa aa aa 00 01 06 70 4d 53 5f 53 43",
+            "pMS_ES": "18 12 03 23 aa aa aa aa aa 00 01 06 70 4d 53 5f 45 53",
+            "AHT1,1,1,1": "18 16 03 23 aa aa aa aa aa 00 01 0a 41 48 54 31 2c 31 2c 31 2c 31",
+        }
+        for text, hexed in cases.items():
+            want = bytes.fromhex(hexed)
+            got = ascii_command(self.TID, text)
+            self.assertEqual(got[: len(want)], want, text)
+            self.assertEqual(len(got), 64)
+            self.assertEqual(got[len(want) :], bytes(64 - len(want)))
+
+    def test_limits(self) -> None:
+        self.assertEqual(len(ascii_command(self.TID, "x" * 15)), 64)
+        for bad_text in ("", "x" * 16, "é"):
+            with self.assertRaises(ValueError):
+                ascii_command(self.TID, bad_text)
+        with self.assertRaises(ValueError):
+            ascii_command(b"\0\0\0", "ALE")
 
 
 if __name__ == "__main__":

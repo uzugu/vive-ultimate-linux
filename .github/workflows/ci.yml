@@ -29,7 +29,7 @@ jobs:
         if: matrix.python-version == '3.13'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
-          PYTHONPATH=python/vut_roomstore:python/vut_mapbuild:python/vut_app:python/pose_daemon/src \
+          PYTHONPATH=python/vut_roomstore:python/vut_dongle:python/vut_mapbuild:python/vut_app:python/pose_daemon/src \
             xvfb-run -a python -m pytest -q -rs python/vut_app/tests/test_gui_model.py
 
   driver:
@@ -112,7 +112,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: pip install pyinstaller -e python/pose_daemon -e python/vut_roomstore -e python/vut_mapbuild -e python/vut_app
+        run: pip install pyinstaller -e python/pose_daemon -e python/vut_roomstore -e python/vut_dongle -e python/vut_mapbuild -e python/vut_app
       - name: Build single-file executable
         run: packaging/build.sh
       - name: Smoke test

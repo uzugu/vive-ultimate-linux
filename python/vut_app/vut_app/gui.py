@@ -88,6 +88,10 @@ def build(root, state: LiveState, rooms: RoomsModel, mapper: MapModel | None = N
     ttk.Label(host_row, text="Host tracker slot:").pack(side="left")
     host_slot = tk.Spinbox(host_row, from_=0, to=4, width=3)
     host_slot.pack(side="left", padx=4)
+    ttk.Label(host_row, text="Wi-Fi country (2 letters):").pack(side="left", padx=(12, 0))
+    country_entry = ttk.Entry(host_row, width=4)
+    country_entry.insert(0, mapper.country)
+    country_entry.pack(side="left", padx=4)
     buttons = ttk.Frame(map_tab)
     buttons.pack(anchor="w", padx=6, pady=4)
     start_btn = ttk.Button(buttons, text="Start map")
@@ -95,7 +99,12 @@ def build(root, state: LiveState, rooms: RoomsModel, mapper: MapModel | None = N
     cancel_btn = ttk.Button(buttons, text="Cancel")
     for b in (start_btn, finish_btn, cancel_btn):
         b.pack(side="left", padx=2)
-    start_btn.configure(command=lambda: mapper.start(int(host_slot.get() or 0)))
+
+    def start_map() -> None:
+        mapper.country = country_entry.get().strip()
+        mapper.start(int(host_slot.get() or 0))
+
+    start_btn.configure(command=start_map)
     finish_btn.configure(command=mapper.finish)
     cancel_btn.configure(command=mapper.cancel)
 
