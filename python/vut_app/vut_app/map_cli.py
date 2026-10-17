@@ -3,7 +3,7 @@
   vut map plan                  print the commands a build would send, with how sure we are of each
   vut map replay <server.log>   replay a ViveTrackerServer log through the model (what the Map tab would have shown)
   vut map quality <Calibration.json>
-  vut map live --tracker-id <hex> --country <CC>   REAL: start and finish a build on the host tracker via the dongle
+  vut map live --country <CC> [--tracker-id <hex>]   REAL: start and finish a build on the host tracker via the dongle
 """
 
 from __future__ import annotations

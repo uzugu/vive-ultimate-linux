@@ -60,7 +60,7 @@ ALE   18 0f 03 23 aa aa aa aa aa 00 01 03 41 4c 45          (tracker id masked a
 Status query `1e 01` and RF behaviour `1d 09 ...` match [pairing-and-status.md](re/pairing-and-status.md) sections 3 and 4.
 Code: `vut_dongle.ascii_command` (tested against these bytes) and `vut_mapbuild.DongleLink`.
 
-**Still open:** where the 5-byte tracker id comes from and how it maps to a slot (the status reply or the 0x28 stream probably carries it; the PC session
+**Still open:** how the tracker id maps to a slot (the id itself is bytes 4..8 of the 0x28 report, and byte 13 is battery or button, per the PC session's analysis of the capture; `vut_dongle.tracker_report`) (the status reply or the 0x28 stream probably carries it; the PC session
 has the data), the OS-specific behaviour of the HID write (code is in `vut_dongle.hidio`, hidapi `send_feature_report`, untested on hardware), how map status rides in the 0x28/0x29 streams, and the cancel command.
 
 ## 4. What our code provides
@@ -90,6 +90,6 @@ A new build **replaces the host tracker's map**; there is no restore yet, so the
    tracker is charged; it costs the new map.
 4. *Open.* Find the slot to tracker-id mapping and the map-status carrier in the 0x28/0x29 streams (offline work on the existing capture, no hardware).
 5. *Open, first live run of our code:* start from the Map tab with a real HID write, one tracker, then cancel at once and read `has map`.
-6. *Open, first live run, needs the user's go-ahead:* `vut map live --tracker-id <10 hex digits> --country <CC>` starts a build on the host tracker through the dongle, asks you to press Enter at each scan stage, then sends `ALE`. It is open loop (reads nothing back) and replaces the map on every tracker. The host tracker id still has to come from the dongle (not decoded yet; the USB capture contains it).
+6. *Open, first live run, needs the user's go-ahead:* `vut map live --country <CC>` (press the host tracker's button so the app learns its id, or pass `--tracker-id`) starts a build on the host tracker through the dongle, asks you to press Enter at each scan stage, then sends `ALE`. It is open loop (reads nothing back) and replaces the map on every tracker. The tracker id comes from the dongle's incoming 0x28 reports (bytes 4..8, `vut_dongle.tracker_report`); untested on live hardware.
 
 Safety: steps 1 to 4 send nothing ourselves. Step 5 sends only `FW2` / `Wc<CC>` / `ATM20` / scan stages / `ALE`, never the file-transfer or import path.
