@@ -35,3 +35,11 @@ that the transfer is a plug-in behind the room service, so the UI and room store
 4. If not replayable, fall back to asking whether the Linux Hub exposes any save/load hook.
 
 Maps hold images of the user's room: stored only in the user's room folder, never committed.
+
+## Status
+
+- `python/vut_roomstore/vut_roomstore/service.py`: room service (list, save, load), `Transport` interface, `FakeTransport`.
+  Dev run: `vut-room serve --socket $XDG_RUNTIME_DIR/ultimate-tracker-rooms.sock --fake-tracker ./fake-tracker`.
+- `python/vut_overlay`: the dashboard panel. `panel.py` (layout, drawing, clicks) and `client.py` are tested in CI;
+  `app.py` is the pyopenvr glue (`pip install vut-overlay[steamvr]`) and is **not yet run against SteamVR**. Input
+  coordinate mapping and dashboard behaviour need a first test with a headset.

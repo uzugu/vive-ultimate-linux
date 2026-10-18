@@ -44,6 +44,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     p = sub.add_parser("attach-maps", help="copy exported map *.db files into the room's private store")
     p.add_argument("name")
     p.add_argument("files", nargs="+")
+    p = sub.add_parser("serve", help="run the room service for the SteamVR overlay (development: fake tracker folder)")
+    p.add_argument("--socket", required=True)
+    p.add_argument("--fake-tracker", required=True, help="folder standing in for the tracker's map; no real transport exists yet")
+    p.add_argument("--calibration-file", default=_default_calibration_file())
 
     args = parser.parse_args(argv)
     store = RoomStore(args.root)
@@ -69,6 +73,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"active room: {room.slug}")
         elif args.command == "import-htc":
             store.import_htc_calibration(args.name, Path(args.path).read_text(encoding="utf-8"))
+        elif args.command == "serve":
+            from .service import FakeTransport, RoomService, serve
+
+            server = serve(RoomService(store, FakeTransport(args.fake_tracker), args.calibration_file), args.socket)
+            print(f"serving on {args.socket}")
+            server.serve_forever()
         elif args.command == "attach-maps":
             store.attach_map_files(args.name, args.files)
     except (RoomError, OSError) as exc:
