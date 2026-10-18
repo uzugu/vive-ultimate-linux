@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vut-overlay"
+version = "0.1.0"
+description = "SteamVR dashboard overlay for switching Ultimate Tracker rooms"
+requires-python = ">=3.10"
+dependencies = ["Pillow"]
+
+[project.optional-dependencies]
+steamvr = ["openvr"]
+
+[project.scripts]
+vut-overlay = "vut_overlay.app:main"
+
+[tool.setuptools.packages.find]
+include = ["vut_overlay*"]

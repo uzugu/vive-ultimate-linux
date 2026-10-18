@@ -13,8 +13,14 @@ from .store import (
     format_calibration_line,
     slugify,
 )
+from .service import FakeTransport, RoomService, Transport, TransportError, serve
 
 __all__ = [
+    "FakeTransport",
+    "RoomService",
+    "Transport",
+    "TransportError",
+    "serve",
     "Calibration",
     "Room",
     "RoomError",
